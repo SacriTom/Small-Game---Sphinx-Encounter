@@ -557,30 +557,15 @@ function drawFrame(t) {
   sc.fillStyle = '#010106';
   sc.fillRect(0, 0, W, H);
 
-  // Nebula layers
-  [{x:.12,y:.45,r:.42,c:'55,0,90',a:.38},{x:.82,y:.38,r:.35,c:'8,18,95',a:.35},
-   {x:.50,y:.72,r:.28,c:'0,42,72',a:.22},{x:.60,y:.28,r:.30,c:'80,28,0',a:.18}
-  ].forEach(n => {
-    const g = sc.createRadialGradient(n.x*W,n.y*H,0,n.x*W,n.y*H,n.r*Math.min(W,H));
-    g.addColorStop(0,`rgba(${n.c},${n.a})`); g.addColorStop(1,'rgba(0,0,0,0)');
-    sc.fillStyle=g; sc.fillRect(0,0,W,H);
-  });
+  // Draw sphinx background image
+  drawSphinxBackground(sc, W, H);
 
-  // Stars
-  VSTARS.forEach(s => {
-    const a = .25 + .75*Math.sin(t*s.spd+s.phase);
-    sc.beginPath(); sc.arc(s.x,s.y,s.r,0,Math.PI*2);
-    sc.fillStyle=`rgba(210,225,255,${a.toFixed(2)})`; sc.fill();
-  });
-
-  // Ambient glow
-  const glowC = scenePhase==='angry' ? '220,30,0' : '180,110,30';
-  const glowA = (.14+.06*Math.sin(t*.001))*(scenePhase==='angry'?3:1);
-  const gg = sc.createRadialGradient(W*.5,H*.44,0,W*.5,H*.44,H*.6);
-  gg.addColorStop(0,`rgba(${glowC},${glowA})`); gg.addColorStop(1,'rgba(0,0,0,0)');
-  sc.fillStyle=gg; sc.fillRect(0,0,W,H);
-
-  drawSphinxPixelArt(sc, W, H, t, scenePhase);
+  // Angry red overlay
+  if (scenePhase === 'angry') {
+    const glowA = .12 + .08 * Math.sin(t * .005);
+    sc.fillStyle = `rgba(220,30,0,${glowA})`;
+    sc.fillRect(0, 0, W, H);
+  }
 
   // Ground mist
   const mist = sc.createLinearGradient(0,H*.80,0,H);
@@ -601,8 +586,12 @@ function drawFrame(t) {
   });
 }
 
-// ── Pixel Art Sphinx ──────────────────────────────────────────
-let sphinxOC = null;
+// ── Sphinx Background Images ─────────────────────────────────
+const sphinxImg = new Image();
+sphinxImg.src = 'Sphinx pixel art 3.jpg';
+const sphinxImg2 = new Image();
+sphinxImg2.src = 'Sphinx pixel art 2.jpg';
+let activeSphinxImg = sphinxImg;  // swapped to sphinxImg2 on final riddle
 
 // ── Adventurer ───────────────────────────────────────────────
 function drawAdventurer(ctx, W, H, S, t) {
@@ -632,210 +621,17 @@ function drawAdventurer(ctx, W, H, S, t) {
   ctx.fillStyle='rgba(255,230,150,.7)'; ctx.fill();
 }
 
-// ── Pixel Art Sphinx renderer ─────────────────────────────────
-function drawSphinxPixelArt(ctx, W, H, t, phase) {
-  // Virtual pixel-art canvas — drawn at low res, scaled up for chunky pixel look
-  const VW = 128, VH = 80;
-  const PS = Math.max(1, Math.min(Math.floor(W / VW), Math.floor(H / VH)));
-  if (!sphinxOC) {
-    sphinxOC = document.createElement('canvas');
-    sphinxOC.width = VW; sphinxOC.height = VH;
-  }
-  const c = sphinxOC.getContext('2d');
-
-  const talkO   = phase === 'talking' ? Math.max(0, 0.5 + 0.5 * Math.sin(t * 0.009)) : 0;
-  const eyePulse = 0.5 + 0.5 * Math.sin(t * 0.0022);
-  const breathe  = Math.round(Math.sin(t * 0.0009)); // 0 or 1 pixel shift
-
-  // Figure anchor (torso base)
-  const FX = 76, FY = 44;
-
-  // ─── Background ───────────────────────────────────────────────
-  c.fillStyle = '#020108';
-  c.fillRect(0, 0, VW, VH);
-  // Warm floor-light gradient
-  const bgG = c.createRadialGradient(FX, VH + 10, 0, FX, VH + 10, 70);
-  bgG.addColorStop(0, 'rgba(50,20,4,0.85)');
-  bgG.addColorStop(1, 'rgba(0,0,0,0)');
-  c.fillStyle = bgG; c.fillRect(0, 0, VW, VH);
-  // A few background star pixels
-  c.fillStyle = 'rgba(200,215,255,0.55)';
-  [[18,6],[38,3],[8,18],[55,5],[102,10],[118,4],[12,40],[95,28]].forEach(([sx,sy]) => c.fillRect(sx,sy,1,1));
-
-  // ─── RIGHT WING (dark crescent, sweeps up-right) ──────────────
-  c.save();
-  c.lineCap = 'round';
-  c.strokeStyle = '#0E0601'; c.lineWidth = 12;
-  c.beginPath(); c.arc(FX + 10, FY - 6, 33, -Math.PI * 0.78, Math.PI * 0.28); c.stroke();
-  c.strokeStyle = '#1C0C04'; c.lineWidth = 7;
-  c.beginPath(); c.arc(FX + 10, FY - 6, 33, -Math.PI * 0.78, Math.PI * 0.28); c.stroke();
-  // thin amber inner edge
-  c.strokeStyle = '#6A3A10'; c.lineWidth = 1.2;
-  c.beginPath(); c.arc(FX + 10, FY - 6, 27, -Math.PI * 0.78, Math.PI * 0.28); c.stroke();
-  c.restore();
-
-  // ─── LEFT WING (feathered golden fan) ─────────────────────────
-  const wX = FX - 14, wY = FY + 4;
-  const wA1 = Math.PI * 0.32;   // lower-right opening
-  const wA2 = Math.PI * 1.68;   // upper-left end
-
-  // Solid base fill behind feathers
-  c.save();
-  c.beginPath(); c.moveTo(wX, wY); c.arc(wX, wY, 45, wA1, wA2); c.closePath();
-  c.fillStyle = '#2C1006'; c.fill(); c.restore();
-
-  // Feather bands: inner (bright gold) → outer (dark amber)
-  const wBands = [
-    [11, 19, '#FED04C'],
-    [19, 27, '#ECA030'],
-    [27, 35, '#C07820'],
-    [35, 43, '#8A5010'],
-  ];
-  wBands.forEach(([r1, r2, col]) => {
-    c.beginPath();
-    c.arc(wX, wY, r2, wA1, wA2);
-    c.arc(wX, wY, r1, wA2, wA1, true);
-    c.closePath(); c.fillStyle = col; c.fill();
-  });
-
-  // Radial feather divider lines
-  c.save(); c.strokeStyle = 'rgba(12,4,0,0.55)'; c.lineWidth = 0.5;
-  for (let i = 0; i <= 17; i++) {
-    const a = wA1 + (wA2 - wA1) * (i / 17);
-    c.beginPath();
-    c.moveTo(wX + Math.cos(a) * 10, wY + Math.sin(a) * 10);
-    c.lineTo(wX + Math.cos(a) * 44, wY + Math.sin(a) * 44);
-    c.stroke();
-  }
-  c.restore();
-
-  // Bright outer rim
-  c.save(); c.strokeStyle = '#FFE050'; c.lineWidth = 0.8;
-  c.beginPath(); c.arc(wX, wY, 43, wA1, wA2); c.stroke(); c.restore();
-
-  // Angry tint
-  if (phase === 'angry') {
-    const ap = 0.14 + 0.09 * Math.sin(t * 0.012);
-    c.save(); c.globalAlpha = ap;
-    wBands.forEach(([r1, r2]) => {
-      c.beginPath(); c.arc(wX, wY, r2, wA1, wA2);
-      c.arc(wX, wY, r1, wA2, wA1, true);
-      c.closePath(); c.fillStyle = '#FF1800'; c.fill();
-    });
-    c.restore();
-  }
-
-  // ─── BODY ─────────────────────────────────────────────────────
-  c.save(); c.translate(0, breathe);
-  const bG = c.createLinearGradient(FX, FY + 32, FX, FY + 6);
-  bG.addColorStop(0, '#F0B438'); bG.addColorStop(0.5, '#C07828'); bG.addColorStop(1, '#884818');
-  c.fillStyle = bG;
-  c.beginPath();
-  c.moveTo(FX - 10, FY + 32);
-  c.bezierCurveTo(FX - 12, FY + 18, FX - 10, FY + 10, FX - 7, FY + 6);
-  c.lineTo(FX + 7, FY + 6);
-  c.bezierCurveTo(FX + 10, FY + 10, FX + 12, FY + 18, FX + 10, FY + 32);
-  c.closePath(); c.fill();
-  // left shoulder (shadow side)
-  c.fillStyle = '#7A4814';
-  c.beginPath(); c.ellipse(FX - 14, FY + 10, 6, 4, 0.3, 0, Math.PI * 2); c.fill();
-  // right shoulder (lit side)
-  c.fillStyle = '#E8A840';
-  c.beginPath(); c.ellipse(FX + 14, FY + 8, 7, 4, -0.3, 0, Math.PI * 2); c.fill();
-  c.fillStyle = '#FEC848';
-  c.beginPath(); c.ellipse(FX + 16, FY + 7, 4, 3, -0.4, 0, Math.PI * 2); c.fill();
-
-  // ─── COLLAR (Egyptian pectoral — 4 bands) ─────────────────────
-  const colY = FY + 6;
-  [[0, 14, '#F0B038', 3], [-3, 12, '#D89028', 3], [-6, 9, '#B87020', 3], [-9, 7, '#8A5018', 3]].forEach(([dy, wr, col, h]) => {
-    c.beginPath(); c.ellipse(FX, colY + dy, wr, h, 0, Math.PI * 0.72, Math.PI * 2.28);
-    c.fillStyle = col; c.fill();
-    c.fillStyle = '#FFE850';
-    for (let i = -2; i <= 2; i++) {
-      const a = Math.PI + i * (Math.PI * 0.5 / 4);
-      c.beginPath(); c.arc(FX + Math.cos(a) * wr, (colY + dy) + Math.sin(a) * h, 0.8, 0, Math.PI * 2); c.fill();
-    }
-  });
-
-  // ─── NECK ─────────────────────────────────────────────────────
-  const nG = c.createLinearGradient(FX - 4, 0, FX + 4, 0);
-  nG.addColorStop(0, '#7A4814'); nG.addColorStop(0.4, '#E8A030'); nG.addColorStop(1, '#9A6020');
-  c.fillStyle = nG; c.fillRect(FX - 4, FY - 4, 8, 12);
-
-  // ─── HEAD ─────────────────────────────────────────────────────
-  const HX = FX + 3, HY = FY - 16;
-  const hG = c.createRadialGradient(HX - 3, HY + 4, 1, HX, HY, 15);
-  hG.addColorStop(0, '#ECA030'); hG.addColorStop(0.4, '#C07828');
-  hG.addColorStop(0.8, '#8A4A18'); hG.addColorStop(1, '#5A2E0A');
-  c.fillStyle = hG;
-  c.beginPath(); c.ellipse(HX, HY, 13, 16, 0.1, 0, Math.PI * 2); c.fill();
-
-  // Hair (short, swept-back, dark)
-  c.fillStyle = '#2C1408';
-  c.beginPath(); c.ellipse(HX, HY - 12, 10, 6, 0.1, Math.PI, Math.PI * 2); c.fill();
-  c.fillStyle = '#1E0C04';
-  c.beginPath(); c.ellipse(HX - 10, HY - 2, 4, 12, 0.3, Math.PI * 0.9, Math.PI * 1.75); c.fill();
-  c.beginPath(); c.ellipse(HX + 10, HY - 2, 3, 10, -0.2, Math.PI * 1.3, Math.PI * 2.1); c.fill();
-  // Topknot
-  c.fillStyle = '#3C2010';
-  c.beginPath(); c.ellipse(HX, HY - 19, 3, 5, 0, 0, Math.PI * 2); c.fill();
-  c.fillStyle = '#241008';
-  c.beginPath(); c.ellipse(HX, HY - 23, 2, 3, 0, 0, Math.PI * 2); c.fill();
-
-  // Eyebrows
-  c.strokeStyle = '#1E0C04'; c.lineWidth = 1.5;
-  c.beginPath(); c.moveTo(HX - 9, HY - 7); c.quadraticCurveTo(HX - 5, HY - 9, HX - 1, HY - 7); c.stroke();
-  c.beginPath(); c.moveTo(HX + 3, HY - 8); c.quadraticCurveTo(HX + 7, HY - 10, HX + 11, HY - 8); c.stroke();
-
-  // Eye sockets
-  c.fillStyle = '#180808';
-  c.beginPath(); c.ellipse(HX - 5, HY - 2, 5, 3, 0.1, 0, Math.PI * 2); c.fill();
-  c.beginPath(); c.ellipse(HX + 6, HY - 3, 5, 3, 0.1, 0, Math.PI * 2); c.fill();
-
-  // Glowing eyes (cyan normally, red when angry)
-  const eyeCol = phase === 'angry' ? '#FF2200' : '#00CCFF';
-  c.save();
-  c.shadowColor = eyeCol; c.shadowBlur = 3 + 2 * eyePulse;
-  c.fillStyle = eyeCol;
-  c.beginPath(); c.ellipse(HX - 5, HY - 2, 3.5, 2, 0.1, 0, Math.PI * 2); c.fill();
-  c.beginPath(); c.ellipse(HX + 6, HY - 3, 3.5, 2, 0.1, 0, Math.PI * 2); c.fill();
-  c.restore();
-  // Pupils
-  c.fillStyle = '#060304';
-  c.beginPath(); c.arc(HX - 4, HY - 2, 1.5, 0, Math.PI * 2); c.fill();
-  c.beginPath(); c.arc(HX + 7, HY - 3, 1.5, 0, Math.PI * 2); c.fill();
-
-  // Kohl lines (Egyptian)
-  c.strokeStyle = '#120806'; c.lineWidth = 0.8;
-  c.beginPath(); c.moveTo(HX - 10, HY - 2); c.lineTo(HX - 7, HY - 2); c.stroke();
-  c.beginPath(); c.moveTo(HX - 1, HY - 2); c.lineTo(HX + 1, HY - 2); c.stroke();
-  c.beginPath(); c.moveTo(HX + 10, HY - 3); c.lineTo(HX + 13, HY - 3); c.stroke();
-
-  // Nose
-  c.strokeStyle = 'rgba(80,42,10,0.6)'; c.lineWidth = 0.6;
-  c.beginPath(); c.moveTo(HX + 2, HY + 1); c.quadraticCurveTo(HX + 5, HY + 6, HX + 3, HY + 8); c.stroke();
-  c.fillStyle = 'rgba(90,46,12,0.4)';
-  c.beginPath(); c.arc(HX + 1, HY + 8, 1.5, 0, Math.PI * 2); c.fill();
-  c.beginPath(); c.arc(HX + 4, HY + 7, 1.5, 0, Math.PI * 2); c.fill();
-
-  // Mouth (animated when talking)
-  const mY = HY + 12;
-  if (talkO > 0.3) {
-    c.fillStyle = '#1C0806';
-    c.beginPath(); c.ellipse(HX + 1, mY, 4.5, talkO * 2.2, 0.05, 0, Math.PI * 2); c.fill();
-  }
-  c.strokeStyle = '#8A4818'; c.lineWidth = 0.7;
-  c.beginPath(); c.moveTo(HX - 5, mY); c.bezierCurveTo(HX - 2, mY - 2, HX + 3, mY - 2, HX + 7, mY); c.stroke();
-  c.strokeStyle = 'rgba(120,65,22,0.45)'; c.lineWidth = 0.5;
-  c.beginPath(); c.moveTo(HX - 4, mY + 2); c.quadraticCurveTo(HX + 1, mY + 4, HX + 6, mY + 2); c.stroke();
-
-  c.restore(); // end breathe translate
-
-  // ─── Blit to main canvas (scaled up, no smoothing = pixel art) ─
-  const ox = (W - VW * PS) >> 1;
-  const oy = (H - VH * PS) >> 1;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(sphinxOC, ox, oy, VW * PS, VH * PS);
+// ── Sphinx Background Image renderer ─────────────────────────
+function drawSphinxBackground(ctx, W, H) {
+  const img = activeSphinxImg;
+  if (!img.complete || !img.naturalWidth) return;
+  // Cover the canvas while preserving aspect ratio
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  const scale = Math.max(W / iw, H / ih);
+  const dw = iw * scale, dh = ih * scale;
+  const ox = (W - dw) / 2, oy = (H - dh) / 2;
+  ctx.imageSmoothingEnabled = false; // keep pixel art crisp
+  ctx.drawImage(img, ox, oy, dw, dh);
   ctx.imageSmoothingEnabled = true;
 }
 
@@ -937,6 +733,9 @@ function loadRiddle(index) {
   answering=false;
   const r=RIDDLES[index];
 
+  // Final riddle: swap to dramatic blue sphinx
+  activeSphinxImg = (index === RIDDLES.length - 1) ? sphinxImg2 : sphinxImg;
+
   starsEl.forEach((s,i)=>s.classList.toggle("lit",i<=index));
   diffLbl.textContent=r.difficulty;
   riddleOrd.textContent=r.ord;
@@ -987,7 +786,7 @@ function selectAnswer(chosen){
 //  GAME FLOW
 // ════════════════════════════════════════════════════════════════
 function startGame(){
-  currentRiddle=0; scenePhase='idle';
+  currentRiddle=0; scenePhase='idle'; activeSphinxImg=sphinxImg;
   startMusic();                        // begin music on first interaction
   showScreen("riddle");
   startScene();
