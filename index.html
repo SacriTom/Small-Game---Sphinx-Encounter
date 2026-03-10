@@ -573,17 +573,14 @@ function drawFrame(t) {
     sc.fillStyle=`rgba(210,225,255,${a.toFixed(2)})`; sc.fill();
   });
 
-  drawMoon(sc, W, H, S, cx, by, t);
-
-  // Sphinx ambient glow
+  // Ambient glow
   const glowC = scenePhase==='angry' ? '220,30,0' : '180,110,30';
-  const glowA = (.16+.05*Math.sin(t*.001))*(scenePhase==='angry'?3:1);
-  const gg = sc.createRadialGradient(cx,by-S*350,0,cx,by-S*350,S*480);
+  const glowA = (.14+.06*Math.sin(t*.001))*(scenePhase==='angry'?3:1);
+  const gg = sc.createRadialGradient(W*.5,H*.44,0,W*.5,H*.44,H*.6);
   gg.addColorStop(0,`rgba(${glowC},${glowA})`); gg.addColorStop(1,'rgba(0,0,0,0)');
   sc.fillStyle=gg; sc.fillRect(0,0,W,H);
 
-  drawSphinx(sc, W, H, S, cx, by, t, scenePhase);
-  drawPedestal(sc, W, H, S, cx, by);
+  drawSphinxPixelArt(sc, W, H, t, scenePhase);
 
   // Ground mist
   const mist = sc.createLinearGradient(0,H*.80,0,H);
@@ -604,49 +601,8 @@ function drawFrame(t) {
   });
 }
 
-// ── Moon ─────────────────────────────────────────────────────
-function drawMoon(ctx, W, H, S, cx, by, t) {
-  const mx=cx+S*175, my=by-S*570, mr=S*105;
-  const pulse=.88+.12*Math.sin(t*.00075);
-  const halo=ctx.createRadialGradient(mx,my,mr*.5,mx,my,mr*2.2);
-  halo.addColorStop(0,`rgba(200,130,40,${.22*pulse})`);
-  halo.addColorStop(.5,`rgba(160,90,20,${.10*pulse})`);
-  halo.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=halo; ctx.fillRect(0,0,W,H);
-  ctx.save();
-  ctx.shadowColor='rgba(220,150,60,.6)'; ctx.shadowBlur=mr*.5;
-  ctx.beginPath(); ctx.arc(mx,my,mr,0,Math.PI*2);
-  ctx.fillStyle='#C88030'; ctx.fill();
-  ctx.restore();
-  ctx.beginPath(); ctx.arc(mx-mr*.2,my-mr*.15,mr*.65,0,Math.PI*2);
-  ctx.fillStyle='#B87228'; ctx.fill();
-  ctx.beginPath(); ctx.arc(mx-mr*.35,my-mr*.28,mr*.22,0,Math.PI*2);
-  ctx.fillStyle='#E0A050'; ctx.fill();
-  ctx.beginPath(); ctx.arc(mx+mr*.32,my-mr*.08,mr*.8,0,Math.PI*2);
-  ctx.fillStyle='#010106'; ctx.fill();
-  ctx.beginPath(); ctx.arc(mx,my,mr+2,Math.PI*.6,Math.PI*1.5);
-  ctx.strokeStyle=`rgba(255,200,100,${.45*pulse})`; ctx.lineWidth=S*3; ctx.stroke();
-}
-
-// ── Pedestal ─────────────────────────────────────────────────
-function drawPedestal(ctx, W, H, S, cx, by) {
-  const pw=S*240, ph=S*50;
-  const grad=ctx.createLinearGradient(cx-pw,by-ph,cx,by);
-  grad.addColorStop(0,'#0E0908'); grad.addColorStop(.4,'#1E1510'); grad.addColorStop(1,'#080604');
-  ctx.beginPath();
-  ctx.moveTo(cx-pw*1.15,by); ctx.lineTo(cx-pw*.9,by-ph);
-  ctx.lineTo(cx+pw*.85,by-ph); ctx.lineTo(cx+pw*1.1,by);
-  ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
-  ctx.beginPath(); ctx.moveTo(cx-pw*.9,by-ph); ctx.lineTo(cx+pw*.85,by-ph);
-  ctx.strokeStyle='rgba(180,130,60,.28)'; ctx.lineWidth=S*2; ctx.stroke();
-  [-1.5,-.8,0,.8,1.5].forEach(off => {
-    const hx=cx+off*S*50, hy=by-ph+S*8;
-    ctx.strokeStyle='rgba(100,65,25,.55)'; ctx.lineWidth=S*1.5;
-    ctx.strokeRect(hx-S*8,hy,S*16,S*22);
-    ctx.beginPath(); ctx.moveTo(hx-S*4,hy+S*8); ctx.lineTo(hx+S*4,hy+S*8); ctx.stroke();
-    ctx.beginPath(); ctx.arc(hx,hy+S*16,S*3,0,Math.PI*2); ctx.stroke();
-  });
-}
+// ── Pixel Art Sphinx ──────────────────────────────────────────
+let sphinxOC = null;
 
 // ── Adventurer ───────────────────────────────────────────────
 function drawAdventurer(ctx, W, H, S, t) {
@@ -676,275 +632,211 @@ function drawAdventurer(ctx, W, H, S, t) {
   ctx.fillStyle='rgba(255,230,150,.7)'; ctx.fill();
 }
 
-// ── Main Sphinx ───────────────────────────────────────────────
-function drawSphinx(ctx, W, H, S, cx, by, t, phase) {
-  const breathe=Math.sin(t*.00085)*S*3;
-  const wf=Math.sin(t*.00065)*S*6;
-  const eyeC=phase==='angry'?'#FF1100':'#FF8C00';
-  const eyePulse=.55+.45*Math.sin(t*.0025);
-  const talkO=phase==='talking'?Math.max(0,.5+.5*Math.sin(t*.009)):0;
-  ctx.save(); ctx.translate(0,breathe);
-  drawSphinxWings(ctx,S,cx,by,wf,phase,t);
-  drawLionBody(ctx,S,cx,by);
-  drawTorso(ctx,S,cx,by);
-  drawCollar(ctx,S,cx,by);
-  drawNeck(ctx,S,cx,by);
-  drawHead(ctx,S,cx,by,eyeC,eyePulse,talkO,t,phase);
-  ctx.restore();
-}
-
-// ── Wings ─────────────────────────────────────────────────────
-function drawSphinxWings(ctx, S, cx, by, wf, phase, t) {
-  // ─ LEFT WING (sweeps down-left) ─
-  const lwG=ctx.createLinearGradient(cx-S*380,by-S*220,cx-S*60,by-S*320);
-  lwG.addColorStop(0,'#4A2C0A'); lwG.addColorStop(.45,'#8A5820');
-  lwG.addColorStop(.8,'#C07830'); lwG.addColorStop(1,'#9A6020');
-  ctx.beginPath();
-  ctx.moveTo(cx-S*60,by-S*290);
-  ctx.bezierCurveTo(cx-S*110,by-S*340, cx-S*280,by-S*360+wf*.4, cx-S*390,by-S*290+wf);
-  ctx.bezierCurveTo(cx-S*430,by-S*250+wf, cx-S*410,by-S*150+wf, cx-S*340,by-S*120+wf);
-  ctx.bezierCurveTo(cx-S*250,by-S*95, cx-S*150,by-S*170, cx-S*70,by-S*220);
-  ctx.bezierCurveTo(cx-S*55,by-S*248, cx-S*50,by-S*272, cx-S*60,by-S*290);
-  ctx.fillStyle=lwG; ctx.fill();
-  // lighter surface layer
-  ctx.beginPath();
-  ctx.moveTo(cx-S*60,by-S*290);
-  ctx.bezierCurveTo(cx-S*105,by-S*335, cx-S*262,by-S*350+wf*.4, cx-S*372,by-S*282+wf);
-  ctx.bezierCurveTo(cx-S*315,by-S*238+wf*.7, cx-S*195,by-S*198, cx-S*70,by-S*218);
-  ctx.fillStyle='rgba(168,96,32,.42)'; ctx.fill();
-  // feather strokes
-  ctx.save(); ctx.strokeStyle='rgba(55,30,8,.65)'; ctx.lineWidth=S*1.1;
-  for(let i=0;i<15;i++){
-    const f=i/14;
-    ctx.beginPath();
-    ctx.moveTo(cx-S*(60+50*f), by-S*(290-72*f));
-    ctx.quadraticCurveTo(
-      cx-S*(105+165*f), by-S*(318-90*f)+wf*f*.6,
-      cx-S*(120+262*f), by-S*(330-170*f)+wf*f
-    ); ctx.stroke();
+// ── Pixel Art Sphinx renderer ─────────────────────────────────
+function drawSphinxPixelArt(ctx, W, H, t, phase) {
+  // Virtual pixel-art canvas — drawn at low res, scaled up for chunky pixel look
+  const VW = 128, VH = 80;
+  const PS = Math.max(1, Math.min(Math.floor(W / VW), Math.floor(H / VH)));
+  if (!sphinxOC) {
+    sphinxOC = document.createElement('canvas');
+    sphinxOC.width = VW; sphinxOC.height = VH;
   }
-  ctx.restore();
+  const c = sphinxOC.getContext('2d');
 
-  // ─ RIGHT WING (sweeps up-right toward moon) ─
-  const rwG=ctx.createLinearGradient(cx+S*380,by-S*520,cx+S*60,by-S*320);
-  rwG.addColorStop(0,'#4A2C0A'); rwG.addColorStop(.45,'#8A5820');
-  rwG.addColorStop(.8,'#C07830'); rwG.addColorStop(1,'#9A6020');
-  ctx.beginPath();
-  ctx.moveTo(cx+S*60,by-S*290);
-  ctx.bezierCurveTo(cx+S*110,by-S*360, cx+S*200,by-S*492-wf*.5, cx+S*270,by-S*562-wf);
-  ctx.bezierCurveTo(cx+S*330,by-S*582-wf, cx+S*402,by-S*522-wf*.8, cx+S*400,by-S*432-wf*.5);
-  ctx.bezierCurveTo(cx+S*388,by-S*342-wf*.3, cx+S*295,by-S*272, cx+S*182,by-S*252);
-  ctx.bezierCurveTo(cx+S*118,by-S*250, cx+S*74,by-S*262, cx+S*60,by-S*290);
-  ctx.fillStyle=rwG; ctx.fill();
-  // lighter surface layer
-  ctx.beginPath();
-  ctx.moveTo(cx+S*60,by-S*290);
-  ctx.bezierCurveTo(cx+S*102,by-S*356, cx+S*186,by-S*476-wf*.5, cx+S*254,by-S*546-wf);
-  ctx.bezierCurveTo(cx+S*312,by-S*560-wf*.9, cx+S*372,by-S*504-wf*.7, cx+S*182,by-S*252);
-  ctx.fillStyle='rgba(162,90,30,.38)'; ctx.fill();
-  // feather strokes
-  ctx.save(); ctx.strokeStyle='rgba(50,28,7,.65)'; ctx.lineWidth=S*1.1;
-  for(let i=0;i<15;i++){
-    const f=i/14;
-    ctx.beginPath();
-    ctx.moveTo(cx+S*(60+32*f), by-S*(290+42*f));
-    ctx.quadraticCurveTo(
-      cx+S*(105+130*f), by-S*(352+120*f)-wf*f*.4,
-      cx+S*(118+240*f), by-S*(368+200*f)-wf*f
-    ); ctx.stroke();
+  const talkO   = phase === 'talking' ? Math.max(0, 0.5 + 0.5 * Math.sin(t * 0.009)) : 0;
+  const eyePulse = 0.5 + 0.5 * Math.sin(t * 0.0022);
+  const breathe  = Math.round(Math.sin(t * 0.0009)); // 0 or 1 pixel shift
+
+  // Figure anchor (torso base)
+  const FX = 76, FY = 44;
+
+  // ─── Background ───────────────────────────────────────────────
+  c.fillStyle = '#020108';
+  c.fillRect(0, 0, VW, VH);
+  // Warm floor-light gradient
+  const bgG = c.createRadialGradient(FX, VH + 10, 0, FX, VH + 10, 70);
+  bgG.addColorStop(0, 'rgba(50,20,4,0.85)');
+  bgG.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = bgG; c.fillRect(0, 0, VW, VH);
+  // A few background star pixels
+  c.fillStyle = 'rgba(200,215,255,0.55)';
+  [[18,6],[38,3],[8,18],[55,5],[102,10],[118,4],[12,40],[95,28]].forEach(([sx,sy]) => c.fillRect(sx,sy,1,1));
+
+  // ─── RIGHT WING (dark crescent, sweeps up-right) ──────────────
+  c.save();
+  c.lineCap = 'round';
+  c.strokeStyle = '#0E0601'; c.lineWidth = 12;
+  c.beginPath(); c.arc(FX + 10, FY - 6, 33, -Math.PI * 0.78, Math.PI * 0.28); c.stroke();
+  c.strokeStyle = '#1C0C04'; c.lineWidth = 7;
+  c.beginPath(); c.arc(FX + 10, FY - 6, 33, -Math.PI * 0.78, Math.PI * 0.28); c.stroke();
+  // thin amber inner edge
+  c.strokeStyle = '#6A3A10'; c.lineWidth = 1.2;
+  c.beginPath(); c.arc(FX + 10, FY - 6, 27, -Math.PI * 0.78, Math.PI * 0.28); c.stroke();
+  c.restore();
+
+  // ─── LEFT WING (feathered golden fan) ─────────────────────────
+  const wX = FX - 14, wY = FY + 4;
+  const wA1 = Math.PI * 0.32;   // lower-right opening
+  const wA2 = Math.PI * 1.68;   // upper-left end
+
+  // Solid base fill behind feathers
+  c.save();
+  c.beginPath(); c.moveTo(wX, wY); c.arc(wX, wY, 45, wA1, wA2); c.closePath();
+  c.fillStyle = '#2C1006'; c.fill(); c.restore();
+
+  // Feather bands: inner (bright gold) → outer (dark amber)
+  const wBands = [
+    [11, 19, '#FED04C'],
+    [19, 27, '#ECA030'],
+    [27, 35, '#C07820'],
+    [35, 43, '#8A5010'],
+  ];
+  wBands.forEach(([r1, r2, col]) => {
+    c.beginPath();
+    c.arc(wX, wY, r2, wA1, wA2);
+    c.arc(wX, wY, r1, wA2, wA1, true);
+    c.closePath(); c.fillStyle = col; c.fill();
+  });
+
+  // Radial feather divider lines
+  c.save(); c.strokeStyle = 'rgba(12,4,0,0.55)'; c.lineWidth = 0.5;
+  for (let i = 0; i <= 17; i++) {
+    const a = wA1 + (wA2 - wA1) * (i / 17);
+    c.beginPath();
+    c.moveTo(wX + Math.cos(a) * 10, wY + Math.sin(a) * 10);
+    c.lineTo(wX + Math.cos(a) * 44, wY + Math.sin(a) * 44);
+    c.stroke();
   }
-  ctx.restore();
+  c.restore();
 
-  // ─ Angry wing glow ─
-  if(phase==='angry'){
-    const ap=.14+.10*Math.sin(t*.01);
-    ctx.fillStyle=`rgba(200,20,0,${ap})`;
-    ctx.beginPath();
-    ctx.moveTo(cx-S*60,by-S*290);
-    ctx.bezierCurveTo(cx-S*225,by-S*352+wf*.4,cx-S*382,by-S*282+wf,cx-S*412,by-S*200+wf);
-    ctx.bezierCurveTo(cx-S*322,by-S*158+wf,cx-S*130,by-S*198,cx-S*60,by-S*290);
-    ctx.fill();
+  // Bright outer rim
+  c.save(); c.strokeStyle = '#FFE050'; c.lineWidth = 0.8;
+  c.beginPath(); c.arc(wX, wY, 43, wA1, wA2); c.stroke(); c.restore();
+
+  // Angry tint
+  if (phase === 'angry') {
+    const ap = 0.14 + 0.09 * Math.sin(t * 0.012);
+    c.save(); c.globalAlpha = ap;
+    wBands.forEach(([r1, r2]) => {
+      c.beginPath(); c.arc(wX, wY, r2, wA1, wA2);
+      c.arc(wX, wY, r1, wA2, wA1, true);
+      c.closePath(); c.fillStyle = '#FF1800'; c.fill();
+    });
+    c.restore();
   }
-}
 
-// ── Lion Body ────────────────────────────────────────────────
-function drawLionBody(ctx, S, cx, by) {
-  ctx.beginPath(); ctx.ellipse(cx+S*10,by-S*8,S*172,S*28,0,0,Math.PI*2);
-  ctx.fillStyle='rgba(0,0,0,.45)'; ctx.fill();
-  const hG=ctx.createRadialGradient(cx-S*30,by-S*80,S*10,cx,by-S*70,S*182);
-  hG.addColorStop(0,'#D09040'); hG.addColorStop(.4,'#A06A28'); hG.addColorStop(1,'#5A3410');
-  ctx.beginPath();
-  ctx.moveTo(cx-S*162,by);
-  ctx.bezierCurveTo(cx-S*182,by-S*30,cx-S*172,by-S*122,cx-S*90,by-S*157);
-  ctx.bezierCurveTo(cx-S*50,by-S*170,cx+S*32,by-S*170,cx+S*82,by-S*157);
-  ctx.bezierCurveTo(cx+S*162,by-S*128,cx+S*182,by-S*42,cx+S*168,by);
-  ctx.closePath(); ctx.fillStyle=hG; ctx.fill();
-  // front left paw
-  const pG=ctx.createLinearGradient(cx-S*132,by-S*150,cx-S*53,by);
-  pG.addColorStop(0,'#8A5820'); pG.addColorStop(.5,'#C07830'); pG.addColorStop(1,'#7A4C18');
-  ctx.beginPath();
-  ctx.moveTo(cx-S*102,by-S*150);
-  ctx.bezierCurveTo(cx-S*122,by-S*122,cx-S*132,by-S*42,cx-S*126,by+S*2);
-  ctx.bezierCurveTo(cx-S*92,by+S*9,cx-S*60,by+S*9,cx-S*55,by+S*2);
-  ctx.bezierCurveTo(cx-S*50,by-S*38,cx-S*62,by-S*112,cx-S*80,by-S*146);
-  ctx.closePath(); ctx.fillStyle=pG; ctx.fill();
-  // front right paw
-  ctx.beginPath();
-  ctx.moveTo(cx-S*22,by-S*148);
-  ctx.bezierCurveTo(cx-S*38,by-S*118,cx-S*42,by-S*42,cx-S*37,by+S*2);
-  ctx.bezierCurveTo(cx+S*8,by+S*9,cx+S*52,by+S*7,cx+S*54,by);
-  ctx.bezierCurveTo(cx+S*57,by-S*42,cx+S*47,by-S*116,cx+S*32,by-S*144);
-  ctx.closePath(); ctx.fillStyle=pG; ctx.fill();
-  // toe lines
-  ctx.save(); ctx.strokeStyle='rgba(60,35,10,.5)'; ctx.lineWidth=S*1.5;
-  [-S*107,-S*92,-S*78].forEach(tx=>{ctx.beginPath();ctx.moveTo(cx+tx,by+S*3);ctx.lineTo(cx+tx,by+S*11);ctx.stroke();});
-  [-S*2,S*13,S*28].forEach(tx=>{ctx.beginPath();ctx.moveTo(cx+tx-S*5,by+S*3);ctx.lineTo(cx+tx-S*5,by+S*11);ctx.stroke();});
-  ctx.restore();
-}
+  // ─── BODY ─────────────────────────────────────────────────────
+  c.save(); c.translate(0, breathe);
+  const bG = c.createLinearGradient(FX, FY + 32, FX, FY + 6);
+  bG.addColorStop(0, '#F0B438'); bG.addColorStop(0.5, '#C07828'); bG.addColorStop(1, '#884818');
+  c.fillStyle = bG;
+  c.beginPath();
+  c.moveTo(FX - 10, FY + 32);
+  c.bezierCurveTo(FX - 12, FY + 18, FX - 10, FY + 10, FX - 7, FY + 6);
+  c.lineTo(FX + 7, FY + 6);
+  c.bezierCurveTo(FX + 10, FY + 10, FX + 12, FY + 18, FX + 10, FY + 32);
+  c.closePath(); c.fill();
+  // left shoulder (shadow side)
+  c.fillStyle = '#7A4814';
+  c.beginPath(); c.ellipse(FX - 14, FY + 10, 6, 4, 0.3, 0, Math.PI * 2); c.fill();
+  // right shoulder (lit side)
+  c.fillStyle = '#E8A840';
+  c.beginPath(); c.ellipse(FX + 14, FY + 8, 7, 4, -0.3, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#FEC848';
+  c.beginPath(); c.ellipse(FX + 16, FY + 7, 4, 3, -0.4, 0, Math.PI * 2); c.fill();
 
-// ── Torso ────────────────────────────────────────────────────
-function drawTorso(ctx, S, cx, by) {
-  const tG=ctx.createLinearGradient(cx-S*142,by-S*342,cx+S*82,by-S*162);
-  tG.addColorStop(0,'#6A3E14'); tG.addColorStop(.3,'#A06828');
-  tG.addColorStop(.6,'#C8883A'); tG.addColorStop(1,'#7A4E1A');
-  ctx.beginPath();
-  ctx.moveTo(cx-S*62,by-S*162);
-  ctx.bezierCurveTo(cx-S*86,by-S*212,cx-S*132,by-S*258,cx-S*126,by-S*308);
-  ctx.bezierCurveTo(cx-S*123,by-S*332,cx-S*116,by-S*347,cx-S*91,by-S*352);
-  ctx.bezierCurveTo(cx-S*56,by-S*360,cx+S*62,by-S*360,cx+S*97,by-S*350);
-  ctx.bezierCurveTo(cx+S*120,by-S*337,cx+S*124,by-S*317,cx+S*117,by-S*292);
-  ctx.bezierCurveTo(cx+S*110,by-S*258,cx+S*90,by-S*218,cx+S*67,by-S*167);
-  ctx.bezierCurveTo(cx+S*42,by-S*157,cx-S*36,by-S*157,cx-S*62,by-S*162);
-  ctx.fillStyle=tG; ctx.fill();
-  // front-lit highlight (light from below)
-  const hiG=ctx.createRadialGradient(cx+S*15,by-S*242,S*5,cx+S*15,by-S*242,S*122);
-  hiG.addColorStop(0,'rgba(240,185,90,.38)');
-  hiG.addColorStop(.5,'rgba(200,145,60,.16)');
-  hiG.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(cx-S*62,by-S*162);
-  ctx.bezierCurveTo(cx-S*86,by-S*212,cx-S*132,by-S*258,cx-S*126,by-S*308);
-  ctx.bezierCurveTo(cx-S*123,by-S*332,cx-S*116,by-S*347,cx-S*91,by-S*352);
-  ctx.bezierCurveTo(cx-S*56,by-S*360,cx+S*62,by-S*360,cx+S*97,by-S*350);
-  ctx.bezierCurveTo(cx+S*120,by-S*337,cx+S*124,by-S*317,cx+S*117,by-S*292);
-  ctx.bezierCurveTo(cx+S*110,by-S*258,cx+S*90,by-S*218,cx+S*67,by-S*167);
-  ctx.bezierCurveTo(cx+S*42,by-S*157,cx-S*36,by-S*157,cx-S*62,by-S*162);
-  ctx.clip(); ctx.fillStyle=hiG; ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
-  ctx.restore();
-}
-
-// ── Collar ───────────────────────────────────────────────────
-function drawCollar(ctx, S, cx, by) {
-  const cY=by-S*362, oy=cY+S*60;
-  const gems=['#FF5500','#00C8DD','#9900BB','#FFD700','#00C8DD','#FF5500'];
-  [130,110,90,72].forEach((rr,i) => {
-    const r=rr*S;
-    ctx.beginPath(); ctx.arc(cx,oy,r,Math.PI*1.08,Math.PI*1.92);
-    ctx.strokeStyle=['rgba(75,45,14,.8)','rgba(155,92,28,.7)','rgba(198,128,48,.6)','rgba(218,158,68,.5)'][i];
-    ctx.lineWidth=S*9; ctx.stroke();
-    const ng=Math.max(3,5-i);
-    for(let j=0;j<ng;j++){
-      const ang=Math.PI*1.12+j*(Math.PI*.76/(ng-1));
-      const gx=cx+Math.cos(ang)*r, gy=oy+Math.sin(ang)*r;
-      ctx.beginPath(); ctx.arc(gx,gy,S*(4.5-i*.5),0,Math.PI*2);
-      ctx.fillStyle=gems[(j+i)%gems.length]; ctx.fill();
-      ctx.beginPath(); ctx.arc(gx-S*1,gy-S*1,S*1.2,0,Math.PI*2);
-      ctx.fillStyle='rgba(255,255,255,.55)'; ctx.fill();
+  // ─── COLLAR (Egyptian pectoral — 4 bands) ─────────────────────
+  const colY = FY + 6;
+  [[0, 14, '#F0B038', 3], [-3, 12, '#D89028', 3], [-6, 9, '#B87020', 3], [-9, 7, '#8A5018', 3]].forEach(([dy, wr, col, h]) => {
+    c.beginPath(); c.ellipse(FX, colY + dy, wr, h, 0, Math.PI * 0.72, Math.PI * 2.28);
+    c.fillStyle = col; c.fill();
+    c.fillStyle = '#FFE850';
+    for (let i = -2; i <= 2; i++) {
+      const a = Math.PI + i * (Math.PI * 0.5 / 4);
+      c.beginPath(); c.arc(FX + Math.cos(a) * wr, (colY + dy) + Math.sin(a) * h, 0.8, 0, Math.PI * 2); c.fill();
     }
   });
-}
 
-// ── Neck ─────────────────────────────────────────────────────
-function drawNeck(ctx, S, cx, by) {
-  const nG=ctx.createLinearGradient(cx-S*36,by-S*432,cx+S*36,by-S*372);
-  nG.addColorStop(0,'#7A4E18'); nG.addColorStop(.4,'#C07830');
-  nG.addColorStop(.7,'#D89040'); nG.addColorStop(1,'#8A5820');
-  ctx.beginPath();
-  ctx.moveTo(cx-S*30,by-S*372);
-  ctx.bezierCurveTo(cx-S*33,by-S*392,cx-S*29,by-S*427,cx-S*22,by-S*437);
-  ctx.bezierCurveTo(cx-S*10,by-S*442,cx+S*21,by-S*442,cx+S*29,by-S*435);
-  ctx.bezierCurveTo(cx+S*36,by-S*424,cx+S*36,by-S*392,cx+S*33,by-S*374);
-  ctx.bezierCurveTo(cx+S*21,by-S*370,cx-S*19,by-S*370,cx-S*30,by-S*372);
-  ctx.fillStyle=nG; ctx.fill();
-}
+  // ─── NECK ─────────────────────────────────────────────────────
+  const nG = c.createLinearGradient(FX - 4, 0, FX + 4, 0);
+  nG.addColorStop(0, '#7A4814'); nG.addColorStop(0.4, '#E8A030'); nG.addColorStop(1, '#9A6020');
+  c.fillStyle = nG; c.fillRect(FX - 4, FY - 4, 8, 12);
 
-// ── Head ─────────────────────────────────────────────────────
-function drawHead(ctx, S, cx, by, eyeC, eyePulse, talkO, t, phase) {
-  const hcx=cx+S*12, hcy=by-S*492;
-  // head base
-  const hG=ctx.createRadialGradient(hcx-S*18,hcy-S*15,S*5,hcx,hcy,S*64);
-  hG.addColorStop(0,'#E0A050'); hG.addColorStop(.35,'#C07830');
-  hG.addColorStop(.7,'#9A5E22'); hG.addColorStop(1,'#6A3E12');
-  ctx.beginPath(); ctx.ellipse(hcx,hcy,S*46,S*58,0.08,0,Math.PI*2);
-  ctx.fillStyle=hG; ctx.fill();
-  // crown/hair cap
-  const crG=ctx.createLinearGradient(hcx,hcy-S*58,hcx,hcy-S*28);
-  crG.addColorStop(0,'#5A3610'); crG.addColorStop(.6,'#8A5820'); crG.addColorStop(1,'#A87030');
-  ctx.beginPath(); ctx.ellipse(hcx,hcy-S*30,S*49,S*35,0.08,Math.PI,Math.PI*2);
-  ctx.fillStyle=crG; ctx.fill();
-  // diadem band
-  ctx.beginPath(); ctx.ellipse(hcx,hcy-S*26,S*50,S*14,0.08,Math.PI*.95,Math.PI*2.05);
-  ctx.strokeStyle='#C09040'; ctx.lineWidth=S*4; ctx.stroke();
-  // diadem gems
-  for(let i=0;i<7;i++){
-    const a=Math.PI+i*(Math.PI/6);
-    ctx.beginPath(); ctx.arc(hcx+Math.cos(a)*S*50,(hcy-S*26)+Math.sin(a)*S*14,S*2.5,0,Math.PI*2);
-    ctx.fillStyle='#FFD060'; ctx.fill();
+  // ─── HEAD ─────────────────────────────────────────────────────
+  const HX = FX + 3, HY = FY - 16;
+  const hG = c.createRadialGradient(HX - 3, HY + 4, 1, HX, HY, 15);
+  hG.addColorStop(0, '#ECA030'); hG.addColorStop(0.4, '#C07828');
+  hG.addColorStop(0.8, '#8A4A18'); hG.addColorStop(1, '#5A2E0A');
+  c.fillStyle = hG;
+  c.beginPath(); c.ellipse(HX, HY, 13, 16, 0.1, 0, Math.PI * 2); c.fill();
+
+  // Hair (short, swept-back, dark)
+  c.fillStyle = '#2C1408';
+  c.beginPath(); c.ellipse(HX, HY - 12, 10, 6, 0.1, Math.PI, Math.PI * 2); c.fill();
+  c.fillStyle = '#1E0C04';
+  c.beginPath(); c.ellipse(HX - 10, HY - 2, 4, 12, 0.3, Math.PI * 0.9, Math.PI * 1.75); c.fill();
+  c.beginPath(); c.ellipse(HX + 10, HY - 2, 3, 10, -0.2, Math.PI * 1.3, Math.PI * 2.1); c.fill();
+  // Topknot
+  c.fillStyle = '#3C2010';
+  c.beginPath(); c.ellipse(HX, HY - 19, 3, 5, 0, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#241008';
+  c.beginPath(); c.ellipse(HX, HY - 23, 2, 3, 0, 0, Math.PI * 2); c.fill();
+
+  // Eyebrows
+  c.strokeStyle = '#1E0C04'; c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(HX - 9, HY - 7); c.quadraticCurveTo(HX - 5, HY - 9, HX - 1, HY - 7); c.stroke();
+  c.beginPath(); c.moveTo(HX + 3, HY - 8); c.quadraticCurveTo(HX + 7, HY - 10, HX + 11, HY - 8); c.stroke();
+
+  // Eye sockets
+  c.fillStyle = '#180808';
+  c.beginPath(); c.ellipse(HX - 5, HY - 2, 5, 3, 0.1, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.ellipse(HX + 6, HY - 3, 5, 3, 0.1, 0, Math.PI * 2); c.fill();
+
+  // Glowing eyes (cyan normally, red when angry)
+  const eyeCol = phase === 'angry' ? '#FF2200' : '#00CCFF';
+  c.save();
+  c.shadowColor = eyeCol; c.shadowBlur = 3 + 2 * eyePulse;
+  c.fillStyle = eyeCol;
+  c.beginPath(); c.ellipse(HX - 5, HY - 2, 3.5, 2, 0.1, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.ellipse(HX + 6, HY - 3, 3.5, 2, 0.1, 0, Math.PI * 2); c.fill();
+  c.restore();
+  // Pupils
+  c.fillStyle = '#060304';
+  c.beginPath(); c.arc(HX - 4, HY - 2, 1.5, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(HX + 7, HY - 3, 1.5, 0, Math.PI * 2); c.fill();
+
+  // Kohl lines (Egyptian)
+  c.strokeStyle = '#120806'; c.lineWidth = 0.8;
+  c.beginPath(); c.moveTo(HX - 10, HY - 2); c.lineTo(HX - 7, HY - 2); c.stroke();
+  c.beginPath(); c.moveTo(HX - 1, HY - 2); c.lineTo(HX + 1, HY - 2); c.stroke();
+  c.beginPath(); c.moveTo(HX + 10, HY - 3); c.lineTo(HX + 13, HY - 3); c.stroke();
+
+  // Nose
+  c.strokeStyle = 'rgba(80,42,10,0.6)'; c.lineWidth = 0.6;
+  c.beginPath(); c.moveTo(HX + 2, HY + 1); c.quadraticCurveTo(HX + 5, HY + 6, HX + 3, HY + 8); c.stroke();
+  c.fillStyle = 'rgba(90,46,12,0.4)';
+  c.beginPath(); c.arc(HX + 1, HY + 8, 1.5, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(HX + 4, HY + 7, 1.5, 0, Math.PI * 2); c.fill();
+
+  // Mouth (animated when talking)
+  const mY = HY + 12;
+  if (talkO > 0.3) {
+    c.fillStyle = '#1C0806';
+    c.beginPath(); c.ellipse(HX + 1, mY, 4.5, talkO * 2.2, 0.05, 0, Math.PI * 2); c.fill();
   }
-  // uraeus cobra
-  ctx.save(); ctx.strokeStyle='#FF6600'; ctx.lineWidth=S*3.5;
-  ctx.beginPath(); ctx.moveTo(hcx-S*3,hcy-S*58);
-  ctx.bezierCurveTo(hcx,hcy-S*72,hcx+S*6,hcy-S*76,hcx+S*2,hcy-S*82); ctx.stroke();
-  ctx.beginPath(); ctx.arc(hcx+S*2,hcy-S*82,S*6,0,Math.PI*2); ctx.fillStyle='#CC3300'; ctx.fill();
-  ctx.beginPath(); ctx.arc(hcx+S*1,hcy-S*83,S*2.5,0,Math.PI*2); ctx.fillStyle='rgba(255,180,80,.8)'; ctx.fill();
-  ctx.restore();
-  // eyes
-  const eyeY=hcy-S*12, eyeLx=hcx-S*16, eyeRx=hcx+S*18;
-  [eyeLx,eyeRx].forEach(ex=>{
-    ctx.beginPath(); ctx.ellipse(ex,eyeY,S*14,S*8,0.08,0,Math.PI*2);
-    ctx.fillStyle='#1A0808'; ctx.fill();
-  });
-  ctx.save(); ctx.shadowColor=eyeC; ctx.shadowBlur=S*18*eyePulse;
-  [eyeLx,eyeRx].forEach(ex=>{
-    ctx.beginPath(); ctx.ellipse(ex,eyeY,S*11,S*6.5,0.08,0,Math.PI*2);
-    ctx.fillStyle=eyeC; ctx.fill();
-  }); ctx.restore();
-  [eyeLx,eyeRx].forEach(ex=>{
-    ctx.beginPath(); ctx.ellipse(ex,eyeY,S*6,S*5,0.08,0,Math.PI*2);
-    ctx.fillStyle=phase==='angry'?'#660000':'#804000'; ctx.fill();
-    ctx.beginPath(); ctx.ellipse(ex,eyeY,S*3,S*3.5,0.08,0,Math.PI*2);
-    ctx.fillStyle='#050005'; ctx.fill();
-    ctx.beginPath(); ctx.arc(ex-S*4,eyeY-S*2,S*1.8,0,Math.PI*2);
-    ctx.fillStyle='rgba(255,255,255,.7)'; ctx.fill();
-  });
-  // kohl cat-eye lines
-  ctx.save(); ctx.strokeStyle='#1A0808'; ctx.lineWidth=S*2;
-  ctx.beginPath(); ctx.moveTo(eyeLx-S*13,eyeY-S*1); ctx.lineTo(eyeLx-S*24,eyeY-S*6); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(eyeRx+S*13,eyeY-S*1); ctx.lineTo(eyeRx+S*24,eyeY-S*6); ctx.stroke();
-  ctx.restore();
-  // angry eye energy
-  if(phase==='angry'){
-    const ap=.35+.25*Math.sin(t*.015);
-    ctx.save(); ctx.shadowColor='#FF0000'; ctx.shadowBlur=S*25;
-    ctx.fillStyle=`rgba(255,30,0,${ap})`;
-    [eyeLx,eyeRx].forEach(ex=>{ctx.beginPath();ctx.ellipse(ex,eyeY,S*16,S*10,0.08,0,Math.PI*2);ctx.fill();});
-    ctx.restore();
-  }
-  // nose
-  ctx.beginPath(); ctx.moveTo(hcx-S*5,hcy+S*8); ctx.quadraticCurveTo(hcx-S*1,hcy+S*18,hcx+S*5,hcy+S*14);
-  ctx.strokeStyle='rgba(80,45,12,.6)'; ctx.lineWidth=S*2; ctx.stroke();
-  ctx.beginPath(); ctx.arc(hcx-S*3,hcy+S*18,S*2.5,0,Math.PI*2); ctx.arc(hcx+S*7,hcy+S*16,S*2.5,0,Math.PI*2);
-  ctx.fillStyle='rgba(60,35,10,.45)'; ctx.fill();
-  // mouth (animated)
-  const mH=talkO*S*9, mY=hcy+S*34;
-  if(mH>S*1){ctx.beginPath();ctx.ellipse(hcx+S*3,mY,S*18,mH,0.05,0,Math.PI*2);ctx.fillStyle='#2A0808';ctx.fill();}
-  ctx.beginPath(); ctx.moveTo(hcx-S*16,mY-S*1);
-  ctx.bezierCurveTo(hcx-S*6,mY-S*5,hcx+S*8,mY-S*5,hcx+S*20,mY-S*1);
-  ctx.strokeStyle='#7A4018'; ctx.lineWidth=S*2.5; ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(hcx-S*12,mY+S*2);
-  ctx.quadraticCurveTo(hcx+S*3,mY+S*7,hcx+S*16,mY+S*2);
-  ctx.strokeStyle='rgba(100,55,20,.55)'; ctx.lineWidth=S*2; ctx.stroke();
+  c.strokeStyle = '#8A4818'; c.lineWidth = 0.7;
+  c.beginPath(); c.moveTo(HX - 5, mY); c.bezierCurveTo(HX - 2, mY - 2, HX + 3, mY - 2, HX + 7, mY); c.stroke();
+  c.strokeStyle = 'rgba(120,65,22,0.45)'; c.lineWidth = 0.5;
+  c.beginPath(); c.moveTo(HX - 4, mY + 2); c.quadraticCurveTo(HX + 1, mY + 4, HX + 6, mY + 2); c.stroke();
+
+  c.restore(); // end breathe translate
+
+  // ─── Blit to main canvas (scaled up, no smoothing = pixel art) ─
+  const ox = (W - VW * PS) >> 1;
+  const oy = (H - VH * PS) >> 1;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(sphinxOC, ox, oy, VW * PS, VH * PS);
+  ctx.imageSmoothingEnabled = true;
 }
 
 // ── Scene animation loop ──────────────────────────────────────
