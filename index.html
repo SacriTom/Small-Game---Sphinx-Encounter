@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Five Riddles of the Celestial Sphinx</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gold:      #FFD700;
+            --gold-dim:  #C9A227;
+            --gold-dark: #8B6914;
+            --gold-glow: rgba(255,215,0,0.45);
+            --space:     #040410;
+            --red:       #FF2222;
+            --cyan:      #00E5FF;
+            --green:     #00FF88;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body { width:100%; height:100%; overflow:hidden; }
+
+        body {
+            background: var(--space);
+            font-family: 'Cinzel', Georgia, serif;
+            color: var(--gold);
+            position: relative;
+        }
+
+        /* ── STAR CANVAS (title/death/victory bg) ── */
+        #starCanvas {
+            position: fixed; inset: 0;
+            width: 100%; height: 100%;
+            z-index: 0; pointer-events: none;
+        }
+        .nebula {
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(ellipse at 15% 55%, rgba(55,0,110,.35) 0%, transparent 55%),
+                radial-gradient(ellipse at 85% 45%, rgba(0,15,80,.45) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 90%, rgba(0,55,75,.25) 0%, transparent 45%);
+            z-index: 0; pointer-events: none;
+        }
+
+        /* Hide bg when scene is active */
+        body.scene-active #starCanvas,
+        body.scene-active .nebula { opacity: 0; }
+
+        /* ── SPHINX WRAPPERS (title/death/victory) ── */
+        .sphinx-wrap {
+            position: fixed; bottom: 0; z-index: 5;
+            display: flex; align-items: flex-end;
+            transition: filter .6s ease;
+        }
+        #sphinxLeft  { left: 0; }
+        #sphinxRight { right: 0; transform: scaleX(-1); }
+        .sphinx-wrap svg { width: clamp(120px,16vw,230px); display: block; }
+        .sphinx-wrap.angry  { filter: drop-shadow(0 0 25px rgba(255,0,0,.9)) drop-shadow(0 0 55px rgba(255,0,0,.5)); }
+        .sphinx-wrap.dormant{ filter: drop-shadow(0 0 10px rgba(212,175,55,.2)); opacity:.65; }
+        .sphinx-wrap.calm   { filter: drop-shadow(0 0 22px rgba(255,215,0,.45)); }
+        body.scene-active .sphinx-wrap { display: none; }
+
+        /* ── SCREENS ── */
+        .screen {
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 10;
+            opacity: 0; pointer-events: none;
+            transition: opacity .7s ease;
+        }
+        .screen.active { opacity: 1; pointer-events: all; }
+
+        /* ── SHARED BUTTON ── */
+        .btn {
+            font-family: 'Cinzel', serif; font-weight: 700;
+            font-size: 1rem; letter-spacing: .2rem; text-transform: uppercase;
+            padding: 15px 50px; border: 2px solid var(--gold);
+            background: transparent; color: var(--gold);
+            cursor: pointer; position: relative; overflow: hidden;
+            transition: all .3s ease;
+        }
+        .btn::before {
+            content: ''; position: absolute; top:0; left:-100%; width:100%; height:100%;
+            background: linear-gradient(90deg, transparent, rgba(255,215,0,.18), transparent);
+            transition: left .5s ease;
+        }
+        .btn:hover::before { left: 100%; }
+        .btn:hover { background: rgba(255,215,0,.13); box-shadow: 0 0 28px var(--gold-glow); transform: scale(1.04); }
+        .btn:active { transform: scale(.97); }
+
+        /* ═══════════════════════════════ TITLE ═══════════════════════════════ */
+        #screen-title { text-align: center; gap: .6rem; }
+        .title-accent { font-size: 1.6rem; letter-spacing: 1rem; color: var(--gold); text-shadow: 0 0 18px var(--gold-glow); margin-bottom: .4rem; }
+        .title-main   { font-family: 'Cinzel Decorative', serif; font-size: clamp(2rem,5.5vw,4.5rem); font-weight: 900; color: var(--gold); text-shadow: 0 0 35px var(--gold-glow), 0 0 70px rgba(255,215,0,.25); line-height: 1.15; }
+        .title-of     { font-family: 'Cinzel Decorative', serif; font-size: clamp(1rem,2.8vw,2rem); color: var(--cyan); letter-spacing: .35rem; text-shadow: 0 0 18px rgba(0,229,255,.65); margin-bottom: 1.8rem; }
+        .title-lore   { font-size: clamp(.78rem,1.3vw,1rem); font-style: italic; color: rgba(255,215,0,.65); max-width: 560px; line-height: 2; text-align: center; margin-bottom: 2.5rem; }
+        .title-warning{ font-size: .72rem; color: rgba(255,100,100,.6); letter-spacing: .25rem; text-transform: uppercase; margin-top: 1.4rem; }
+
+        /* ═══════════════════════════════ RIDDLE SCENE ═══════════════════════════════ */
+        #screen-riddle {
+            display: block !important;  /* override flex centering */
+            padding: 0; align-items: unset; justify-content: unset;
+        }
+
+        /* Full-screen pixel art canvas */
+        #sceneCanvas {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            z-index: 1;
+        }
+
+        /* UI overlay on top of canvas */
+        #riddle-ui {
+            position: absolute; inset: 0;
+            z-index: 2;
+            display: flex; flex-direction: column;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        /* Top bar */
+        #riddle-top {
+            padding: 14px 20px 0;
+            text-align: center;
+            pointer-events: all;
+            background: linear-gradient(to bottom, rgba(2,2,8,.85) 0%, transparent 100%);
+            padding-bottom: 18px;
+        }
+        .progress-row { display: flex; gap: 14px; align-items: center; justify-content: center; margin-bottom: 8px; }
+        .p-star { font-size: 1.4rem; color: rgba(255,215,0,.2); transition: all .5s ease; }
+        .p-star.lit { color: var(--gold); text-shadow: 0 0 14px var(--gold-glow); }
+        .diff-label { font-size: .7rem; color: var(--cyan); letter-spacing: .45rem; text-transform: uppercase; text-shadow: 0 0 10px rgba(0,229,255,.5); margin-bottom: 8px; }
+        .timer-wrap { width: min(500px,85vw); height: 3px; background: rgba(255,255,255,.08); border-radius: 2px; margin: 0 auto; overflow: hidden; }
+        .timer-fill { height: 100%; background: linear-gradient(90deg, var(--gold), #FF8C00); border-radius: 2px; transition: width 1s linear, background .4s ease; }
+        .timer-fill.danger { background: linear-gradient(90deg,#FF4500,#FF0000); animation: tPulse .45s infinite alternate; }
+        @keyframes tPulse { from { opacity:.65; } to { opacity:1; } }
+
+        /* Bottom panel — speech + answers */
+        #riddle-bottom {
+            pointer-events: all;
+            background: linear-gradient(to top, rgba(2,2,10,.97) 0%, rgba(2,2,10,.9) 55%, transparent 100%);
+            padding: 18px 20px 22px;
+        }
+        #speech-panel { text-align: center; margin-bottom: 14px; padding: 0 8px; }
+        .riddle-ord { font-family: 'Cinzel Decorative', serif; font-size: .7rem; letter-spacing: .55rem; color: var(--cyan); text-shadow: 0 0 8px rgba(0,229,255,.45); margin-bottom: 3px; }
+        .sphinx-speaks { font-size: .65rem; color: rgba(255,215,0,.38); font-style: italic; letter-spacing: .15rem; margin-bottom: 12px; }
+        .riddle-q { font-size: clamp(.85rem,1.6vw,1.05rem); color: rgba(255,240,185,.93); line-height: 1.9; min-height: 3.8em; }
+        .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; max-width: 560px; margin: 0 auto; }
+        .ans-btn {
+            font-family: 'Cinzel', serif; font-size: clamp(.75rem,1.2vw,.88rem);
+            padding: 12px 10px; border: 1px solid rgba(255,215,0,.28);
+            background: rgba(0,0,8,.7); color: rgba(255,215,0,.8);
+            cursor: pointer; border-radius: 3px; transition: all .22s ease;
+        }
+        .ans-btn:hover:not(:disabled) { border-color: var(--gold); background: rgba(255,215,0,.1); color: var(--gold); box-shadow: 0 0 14px rgba(255,215,0,.2); transform: translateY(-2px); }
+        .ans-btn.correct { border-color: var(--green); background: rgba(0,255,136,.12); color: var(--green); box-shadow: 0 0 18px rgba(0,255,136,.3); }
+        .ans-btn.wrong   { border-color: var(--red); background: rgba(255,34,34,.12); color: var(--red); box-shadow: 0 0 18px rgba(255,34,34,.3); animation: wrongShake .5s ease; }
+        .ans-btn:disabled { cursor: not-allowed; }
+        @keyframes wrongShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+
+        /* ═══════════════════════════════ DEATH ═══════════════════════════════ */
+        #screen-death { text-align: center; gap: 1rem; background: radial-gradient(ellipse at center, rgba(90,0,0,.4) 0%, transparent 68%); }
+        .death-title { font-family:'Cinzel Decorative',serif; font-size:clamp(2rem,6vw,4.5rem); color:var(--red); text-shadow:0 0 40px rgba(255,34,34,.9),0 0 80px rgba(255,34,34,.45); animation:dPulse 2s infinite; }
+        @keyframes dPulse { 0%,100%{text-shadow:0 0 40px rgba(255,34,34,.9),0 0 80px rgba(255,34,34,.45)} 50%{text-shadow:0 0 60px rgba(255,34,34,1),0 0 120px rgba(255,34,34,.65)} }
+        .death-flavor { font-size:clamp(.82rem,1.4vw,1rem); color:rgba(255,120,120,.8); font-style:italic; max-width:500px; line-height:1.9; }
+        .death-sub { font-size:.72rem; color:rgba(255,215,0,.35); letter-spacing:.3rem; text-transform:uppercase; }
+        .btn-death { border-color:var(--red); color:var(--red); }
+        .btn-death:hover { background:rgba(255,34,34,.12); box-shadow:0 0 28px rgba(255,34,34,.4); }
+
+        /* Lasers */
+        .laser { position:fixed; height:5px; top:50%; z-index:60; pointer-events:none; opacity:0; border-radius:2px; }
+        .laser.left  { left:0; right:50%; background:linear-gradient(90deg,rgba(255,0,0,0),#FF4444,#FF0000); filter:blur(2px); transform-origin:left center; }
+        .laser.right { left:50%; right:0; background:linear-gradient(270deg,rgba(255,0,0,0),#FF4444,#FF0000); filter:blur(2px); transform-origin:right center; }
+        .laser.fire  { animation:laserFire .8s ease-out forwards; }
+        @keyframes laserFire { 0%{opacity:0;transform:scaleX(0)} 25%{opacity:1;transform:scaleX(1)} 70%{opacity:1} 100%{opacity:0} }
+
+        @keyframes sShake { 0%,100%{transform:translate(0,0)} 10%{transform:translate(-12px,-5px)} 25%{transform:translate(10px,6px)} 40%{transform:translate(-8px,3px)} 55%{transform:translate(8px,-4px)} 70%{transform:translate(-4px,4px)} 85%{transform:translate(4px,-2px)} }
+        .shaking { animation:sShake .65s ease; }
+
+        /* ═══════════════════════════════ VICTORY ═══════════════════════════════ */
+        #screen-victory { text-align:center; gap:.8rem; background:radial-gradient(ellipse at center,rgba(60,40,0,.35) 0%,transparent 65%); }
+        .v-stars  { font-size:clamp(1.5rem,3vw,2.2rem); color:var(--gold); text-shadow:0 0 20px var(--gold-glow); letter-spacing:.6rem; }
+        .v-worthy { font-family:'Cinzel Decorative',serif; font-size:clamp(2.5rem,7vw,5.5rem); font-weight:900; color:var(--gold); text-shadow:0 0 40px var(--gold-glow),0 0 80px rgba(255,215,0,.45),0 0 130px rgba(255,215,0,.2); animation:vGlow 2s infinite; }
+        @keyframes vGlow { 0%,100%{text-shadow:0 0 40px var(--gold-glow),0 0 80px rgba(255,215,0,.45)} 50%{text-shadow:0 0 60px var(--gold-glow),0 0 120px rgba(255,215,0,.65),0 0 180px rgba(255,215,0,.2)} }
+        .v-sub  { font-family:'Cinzel Decorative',serif; font-size:clamp(.9rem,2.2vw,1.5rem); color:var(--cyan); letter-spacing:.5rem; text-shadow:0 0 18px rgba(0,229,255,.75); }
+        .v-text { font-size:clamp(.8rem,1.3vw,.95rem); color:rgba(255,215,0,.7); max-width:520px; line-height:2.1; font-style:italic; }
+        .v-number-five { font-family:'Cinzel Decorative',serif; font-size:clamp(3rem,8vw,6rem); color:var(--gold); text-shadow:0 0 50px var(--gold-glow),0 0 100px rgba(255,215,0,.4); opacity:0; animation:fiveReveal 1s ease .4s forwards; }
+        @keyframes fiveReveal { from{opacity:0;transform:scale(.4)} to{opacity:1;transform:scale(1)} }
+
+        /* Flash overlay */
+        #flashOverlay { position:fixed; inset:0; pointer-events:none; z-index:55; opacity:0; transition:opacity .25s ease; }
+        #flashOverlay.green { background:rgba(0,255,136,.08); }
+        #flashOverlay.red   { background:rgba(255,34,34,.15); }
+        #flashOverlay.show  { opacity:1; }
+
+        /* Particles */
+        .particle { position:fixed; border-radius:50%; pointer-events:none; z-index:6; animation:pFloat linear forwards; }
+        @keyframes pFloat { 0%{opacity:.9;transform:translateY(0) rotate(0deg) scale(1)} 100%{opacity:0;transform:translateY(-110vh) rotate(540deg) scale(.3)} }
+
+        /* Prevent invisible riddle UI from swallowing clicks on other screens */
+        #screen-riddle:not(.active) #riddle-top,
+        #screen-riddle:not(.active) #riddle-bottom { pointer-events: none !important; }
+
+        /* ── MUSIC TOGGLE ── */
+        #muteBtn {
+            position: fixed; bottom: 18px; right: 18px;
+            z-index: 100;
+            width: 38px; height: 38px;
+            border: 1px solid rgba(255,215,0,.35);
+            background: rgba(4,4,16,.75);
+            color: var(--gold);
+            cursor: pointer;
+            border-radius: 50%;
+            font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: all .3s ease;
+            backdrop-filter: blur(4px);
+        }
+        #muteBtn:hover {
+            border-color: var(--gold);
+            background: rgba(255,215,0,.12);
+            box-shadow: 0 0 14px var(--gold-glow);
+        }
+    </style>
+</head>
+<body>
+
+<div class="nebula"></div>
+<canvas id="starCanvas"></canvas>
+
+<!-- ── PERMANENT SPHINXES (title / death / victory) ── -->
+<div class="sphinx-wrap calm" id="sphinxLeft">
+    <svg viewBox="0 0 185 310" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bGL" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD700"/><stop offset="55%" stop-color="#C9A227"/><stop offset="100%" stop-color="#8B6914"/></linearGradient>
+        <linearGradient id="dGL" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#A07818"/><stop offset="100%" stop-color="#5A3B08"/></linearGradient>
+      </defs>
+      <ellipse cx="95" cy="245" rx="72" ry="50" fill="url(#bGL)"/><ellipse cx="55" cy="260" rx="32" ry="28" fill="url(#dGL)"/>
+      <rect x="92" y="205" width="32" height="80" rx="13" fill="url(#bGL)"/><ellipse cx="108" cy="287" rx="20" ry="11" fill="url(#dGL)"/>
+      <rect x="60" y="215" width="28" height="72" rx="12" fill="url(#dGL)"/><ellipse cx="74" cy="289" rx="17" ry="10" fill="url(#dGL)"/>
+      <rect x="55" y="128" width="88" height="100" rx="9" fill="url(#bGL)"/><rect x="68" y="82" width="52" height="64" fill="url(#bGL)"/>
+      <rect x="50" y="28" width="90" height="70" rx="11" fill="url(#bGL)"/>
+      <rect x="44" y="10" width="102" height="40" rx="8" fill="url(#dGL)"/>
+      <rect x="44" y="19" width="102" height="5" fill="#FFD700" opacity=".5" rx="2"/><rect x="44" y="28" width="102" height="5" fill="#FFD700" opacity=".5" rx="2"/><rect x="44" y="37" width="102" height="5" fill="#FFD700" opacity=".5" rx="2"/>
+      <rect x="44" y="42" width="17" height="57" rx="6" fill="url(#dGL)"/><rect x="129" y="42" width="17" height="57" rx="6" fill="url(#dGL)"/>
+      <circle cx="95" cy="10" r="9" fill="#FF6600" opacity=".9"/><rect x="91" y="0" width="8" height="16" rx="4" fill="url(#bGL)"/>
+      <ellipse cx="76" cy="58" rx="13" ry="9" fill="#08001A" stroke="#C9A227" stroke-width="1.5"/><ellipse class="pupil-L" cx="76" cy="58" rx="7" ry="4" fill="#FF8C00" opacity=".45"/>
+      <ellipse cx="114" cy="58" rx="13" ry="9" fill="#08001A" stroke="#C9A227" stroke-width="1.5"/><ellipse class="pupil-L" cx="114" cy="58" rx="7" ry="4" fill="#FF8C00" opacity=".45"/>
+      <path d="M 85 70 Q 95 78 105 70" fill="none" stroke="#A07818" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M 67 87 Q 95 99 123 87" fill="none" stroke="#8B6914" stroke-width="2.5" stroke-linecap="round"/>
+      <polygon points="79,92 111,92 95,122" fill="url(#dGL)"/>
+      <line x1="92" y1="94" x2="89" y2="120" stroke="#FFD700" stroke-width="1.4" opacity=".6"/><line x1="98" y1="94" x2="101" y2="120" stroke="#FFD700" stroke-width="1.4" opacity=".6"/>
+      <path d="M 56 132 Q 95 145 134 132" fill="none" stroke="#FFD700" stroke-width="2.5"/>
+      <circle cx="68" cy="134" r="4.5" fill="#FF4500"/><circle cx="82" cy="130" r="4" fill="#00CED1"/><circle cx="95" cy="128" r="5.5" fill="#9400D3"/><circle cx="108" cy="130" r="4" fill="#00CED1"/><circle cx="122" cy="134" r="4.5" fill="#FF4500"/>
+      <path d="M 22 188 Q -16 152 0 108 Q 22 164 42 188" fill="url(#bGL)" opacity=".7"/>
+    </svg>
+</div>
+<div class="sphinx-wrap calm" id="sphinxRight">
+    <svg viewBox="0 0 185 310" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bGR" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD700"/><stop offset="55%" stop-color="#C9A227"/><stop offset="100%" stop-color="#8B6914"/></linearGradient>
+        <linearGradient id="dGR" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#A07818"/><stop offset="100%" stop-color="#5A3B08"/></linearGradient>
+      </defs>
+      <ellipse cx="95" cy="245" rx="72" ry="50" fill="url(#bGR)"/><ellipse cx="55" cy="260" rx="32" ry="28" fill="url(#dGR)"/>
+      <rect x="92" y="205" width="32" height="80" rx="13" fill="url(#bGR)"/><ellipse cx="108" cy="287" rx="20" ry="11" fill="url(#dGR)"/>
+      <rect x="60" y="215" width="28" height="72" rx="12" fill="url(#dGR)"/><ellipse cx="74" cy="289" rx="17" ry="10" fill="url(#dGR)"/>
+      <rect x="55" y="128" width="88" height="100" rx="9" fill="url(#bGR)"/><rect x="68" y="82" width="52" height="64" fill="url(#bGR)"/>
+      <rect x="50" y="28" width="90" height="70" rx="11" fill="url(#bGR)"/>
+      <rect x="44" y="10" width="102" height="40" rx="8" fill="url(#dGR)"/>
+      <rect x="44" y="19" width="102" height="5" fill="#FFD700" opacity=".5" rx="2"/><rect x="44" y="28" width="102" height="5" fill="#FFD700" opacity=".5" rx="2"/><rect x="44" y="37" width="102" height="5" fill="#FFD700" opacity=".5" rx="2"/>
+      <rect x="44" y="42" width="17" height="57" rx="6" fill="url(#dGR)"/><rect x="129" y="42" width="17" height="57" rx="6" fill="url(#dGR)"/>
+      <circle cx="95" cy="10" r="9" fill="#FF6600" opacity=".9"/><rect x="91" y="0" width="8" height="16" rx="4" fill="url(#bGR)"/>
+      <ellipse cx="76" cy="58" rx="13" ry="9" fill="#08001A" stroke="#C9A227" stroke-width="1.5"/><ellipse class="pupil-R" cx="76" cy="58" rx="7" ry="4" fill="#FF8C00" opacity=".45"/>
+      <ellipse cx="114" cy="58" rx="13" ry="9" fill="#08001A" stroke="#C9A227" stroke-width="1.5"/><ellipse class="pupil-R" cx="114" cy="58" rx="7" ry="4" fill="#FF8C00" opacity=".45"/>
+      <path d="M 85 70 Q 95 78 105 70" fill="none" stroke="#A07818" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M 67 87 Q 95 99 123 87" fill="none" stroke="#8B6914" stroke-width="2.5" stroke-linecap="round"/>
+      <polygon points="79,92 111,92 95,122" fill="url(#dGR)"/>
+      <line x1="92" y1="94" x2="89" y2="120" stroke="#FFD700" stroke-width="1.4" opacity=".6"/><line x1="98" y1="94" x2="101" y2="120" stroke="#FFD700" stroke-width="1.4" opacity=".6"/>
+      <path d="M 56 132 Q 95 145 134 132" fill="none" stroke="#FFD700" stroke-width="2.5"/>
+      <circle cx="68" cy="134" r="4.5" fill="#FF4500"/><circle cx="82" cy="130" r="4" fill="#00CED1"/><circle cx="95" cy="128" r="5.5" fill="#9400D3"/><circle cx="108" cy="130" r="4" fill="#00CED1"/><circle cx="122" cy="134" r="4.5" fill="#FF4500"/>
+      <path d="M 22 188 Q -16 152 0 108 Q 22 164 42 188" fill="url(#bGR)" opacity=".7"/>
+    </svg>
+</div>
+
+<div class="laser left"  id="laserL"></div>
+<div class="laser right" id="laserR"></div>
+<div id="flashOverlay"></div>
+
+<!-- ── BACKGROUND MUSIC ── -->
+<audio id="bgm" loop preload="auto">
+    <source src="Riddle of the Sand-Torn Colossus.mp3" type="audio/mpeg">
+</audio>
+
+<!-- ── MUTE TOGGLE (always visible) ── -->
+<button id="muteBtn" title="Toggle music">♪</button>
+
+<!-- ══════════════════════ TITLE ══════════════════════ -->
+<div class="screen active" id="screen-title">
+    <div class="title-accent">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="title-main">The Five Riddles</div>
+    <div class="title-of">of the Celestial Sphinx</div>
+    <p class="title-lore">
+        Across the void of stars you have come, seeker, to stand before the Gate of the Ancient Cosmos.<br><br>
+        An eternal sphinx guards the passage to <em>treasures beyond reckoning</em>.<br>
+        Answer five sacred riddles — each darker than the last — and you shall pass.<br>
+        Doubt yourself but once, and her eyes shall open…
+    </p>
+    <button class="btn" id="btnStart">Enter Your Fate</button>
+    <div class="title-warning">✦ &nbsp; Five riddles &nbsp;·&nbsp; One chance &nbsp;·&nbsp; No mercy &nbsp; ✦</div>
+</div>
+
+<!-- ══════════════════════ RIDDLE SCENE ══════════════════════ -->
+<div class="screen" id="screen-riddle">
+    <!-- Pixel-art scene canvas fills the full screen -->
+    <canvas id="sceneCanvas"></canvas>
+
+    <!-- UI overlay -->
+    <div id="riddle-ui">
+        <div id="riddle-top">
+            <div class="progress-row">
+                <span class="p-star" id="ps1">✦</span>
+                <span class="p-star" id="ps2">✦</span>
+                <span class="p-star" id="ps3">✦</span>
+                <span class="p-star" id="ps4">✦</span>
+                <span class="p-star" id="ps5">✦</span>
+            </div>
+            <div class="diff-label" id="diffLabel">I — INITIATE</div>
+            <div class="timer-wrap">
+                <div class="timer-fill" id="timerFill" style="width:100%"></div>
+            </div>
+        </div>
+        <div id="riddle-bottom">
+            <div id="speech-panel">
+                <div class="riddle-ord" id="riddleOrd">RIDDLE THE FIRST</div>
+                <div class="sphinx-speaks">— The Sphinx speaks —</div>
+                <p class="riddle-q" id="riddleQ"></p>
+            </div>
+            <div class="answers-grid" id="answersGrid"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════ DEATH ══════════════════════ -->
+<div class="screen" id="screen-death">
+    <div class="death-title">YOU HAVE FALLEN</div>
+    <p class="death-flavor" id="deathFlavor"></p>
+    <div class="death-sub">The stars bear witness to your unworthy end</div>
+    <br>
+    <button class="btn btn-death" id="btnRestart">Seek Another Fate</button>
+</div>
+
+<!-- ══════════════════════ VICTORY ══════════════════════ -->
+<div class="screen" id="screen-victory">
+    <div class="v-stars">✦ &nbsp; ✦ &nbsp; ✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="v-worthy">WORTHY</div>
+    <div class="v-sub">The Celestial Gate Opens</div>
+    <div class="v-number-five">V</div>
+    <p class="v-text">
+        The sphinx lowers her golden head in reverence.<br>
+        Five riddles answered. Five stars claimed. The number of power fulfilled.<br><br>
+        Beyond the gate, the treasure of the cosmos awaits —<br>
+        <em>yours alone, for your mind has proven worthy of the ancient mysteries.</em>
+    </p>
+    <button class="btn" id="btnPlayAgain">Play Again</button>
+</div>
+
+<script>
+"use strict";
+
+// ════════════════════════════════════════════════════════════════
+//  AUDIO
+// ════════════════════════════════════════════════════════════════
+const bgm       = document.getElementById("bgm");
+const muteBtn   = document.getElementById("muteBtn");
+let   musicMuted = false;
+let   musicStarted = false;
+
+bgm.volume = 0; // start silent, fade in
+
+function startMusic() {
+  if (musicStarted) return;
+  musicStarted = true;
+  bgm.play().catch(() => {}); // silently handle autoplay block
+  // Fade in over 3 seconds
+  let vol = 0;
+  const fadeIn = setInterval(() => {
+    vol = Math.min(vol + 0.02, 0.72);
+    if (!musicMuted) bgm.volume = vol;
+    if (vol >= 0.72) clearInterval(fadeIn);
+  }, 60);
+}
+
+function setMusicVolume(target, durationMs) {
+  // Smoothly ramp volume to target
+  const start  = bgm.volume;
+  const steps  = 20;
+  const step   = (target - start) / steps;
+  let   count  = 0;
+  const iv = setInterval(() => {
+    count++;
+    if (!musicMuted) bgm.volume = Math.max(0, Math.min(1, bgm.volume + step));
+    if (count >= steps) clearInterval(iv);
+  }, durationMs / steps);
+}
+
+muteBtn.addEventListener("click", () => {
+  musicMuted = !musicMuted;
+  if (musicMuted) {
+    bgm.volume = 0;
+    muteBtn.textContent = "♪̶";
+    muteBtn.style.opacity = ".45";
+  } else {
+    bgm.volume = 0.72;
+    muteBtn.textContent = "♪";
+    muteBtn.style.opacity = "1";
+    if (!musicStarted) startMusic();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+//  RIDDLE DATA
+// ════════════════════════════════════════════════════════════════
+const RIDDLES = [
+  {
+    ord: "RIDDLE THE FIRST", difficulty: "I  —  INITIATE",
+    question: "I have hands that point but cannot write. I have a face but shed no tears. I count the hours of your life, yet I have never truly lived. What am I?",
+    choices: ["A compass","A sundial","A clock","A mirror"], correct: 2,
+    death: "\"A fool who cannot read time,\" the Sphinx purrs, \"shall be lost in eternity.\""
+  },
+  {
+    ord: "RIDDLE THE SECOND", difficulty: "II  —  SEEKER",
+    question: "The more of me you take, the more you leave behind. I am born beneath your feet in sand, in snow, and soil. I follow the living yet vanish with the rain. What am I?",
+    choices: ["A shadow","Footsteps","A memory","Dust"], correct: 1,
+    death: "\"You have not yet learned to walk the path of wisdom,\" the Sphinx intones. \"How fitting.\""
+  },
+  {
+    ord: "RIDDLE THE THIRD", difficulty: "III  —  WANDERER",
+    question: "I hold kingdoms without kings, oceans without fish, and mountains without snow. I am flat, yet I contain entire worlds. Explorers trust me with their lives, yet I have never touched the ground I describe. What am I?",
+    choices: ["A dream","A prophecy","A map","A painting"], correct: 2,
+    death: "\"Lost without a guide,\" the Sphinx whispers. \"How fitting that you shall wander here no more.\""
+  },
+  {
+    ord: "RIDDLE THE FOURTH", difficulty: "IV  —  CHALLENGER",
+    question: "I was never born, yet I have a voice. I steal your words and return them faithfully. I dwell in chasms, canyons, and hollow stone. I am proof that emptiness can still speak. What am I?",
+    choices: ["A ghost","The wind","A prophecy","An echo"], correct: 3,
+    death: "\"Your words ring hollow,\" the Sphinx breathes. \"As hollow as you.\""
+  },
+  {
+    ord: "RIDDLE THE FIFTH", difficulty: "V  —  THE FINAL TEST",
+    question: "I am the count of riddles you have faced. The fingers upon a mortal hand. The points of the sacred star above. I am carved into ancient stones and written across the cosmos. I guard this very gate. What number am I?",
+    choices: ["Three","Seven","One","Five"], correct: 3,
+    death: "\"You stood so close to glory,\" the Sphinx sighs. \"The cosmos does not forgive those who cannot see what is directly before them.\""
+  }
+];
+
+const TIMER_SECONDS = 30;
+let currentRiddle = 0, timerInterval = null, timeLeft = TIMER_SECONDS, answering = false;
+
+// ════════════════════════════════════════════════════════════════
+//  ELEMENT REFS
+// ════════════════════════════════════════════════════════════════
+const screens = {
+  title:   document.getElementById("screen-title"),
+  riddle:  document.getElementById("screen-riddle"),
+  death:   document.getElementById("screen-death"),
+  victory: document.getElementById("screen-victory"),
+};
+const starsEl     = [1,2,3,4,5].map(n => document.getElementById("ps"+n));
+const diffLbl     = document.getElementById("diffLabel");
+const riddleOrd   = document.getElementById("riddleOrd");
+const riddleQ     = document.getElementById("riddleQ");
+const answersGrid = document.getElementById("answersGrid");
+const timerFill   = document.getElementById("timerFill");
+const deathFlavor = document.getElementById("deathFlavor");
+const flashOL     = document.getElementById("flashOverlay");
+const sphinxL     = document.getElementById("sphinxLeft");
+const sphinxR     = document.getElementById("sphinxRight");
+const laserL      = document.getElementById("laserL");
+const laserR      = document.getElementById("laserR");
+
+document.getElementById("btnStart").addEventListener("click", startGame);
+document.getElementById("btnRestart").addEventListener("click", restartGame);
+document.getElementById("btnPlayAgain").addEventListener("click", restartGame);
+
+// ════════════════════════════════════════════════════════════════
+//  BACKGROUND STAR CANVAS (non-riddle screens)
+// ════════════════════════════════════════════════════════════════
+(function buildStars() {
+  const canvas = document.getElementById("starCanvas");
+  const ctx = canvas.getContext("2d");
+  let stars = [];
+  function resize() {
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    stars = Array.from({length:280}, () => ({
+      x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+      r: Math.random()*1.6+.2, alpha: Math.random(),
+      da: (Math.random()*.006+.002) * (Math.random()<.5?1:-1)
+    }));
+  }
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    stars.forEach(s => {
+      s.alpha += s.da;
+      if(s.alpha>1||s.alpha<0) s.da*=-1;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(220,230,255,${Math.max(0,Math.min(1,s.alpha))})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener("resize",resize); resize(); draw();
+})();
+
+// ════════════════════════════════════════════════════════════════
+//  PIXEL-ART SCENE CANVAS
+// ════════════════════════════════════════════════════════════════
+const VIRT_W = 320, VIRT_H = 180;
+
+const offCanvas = document.createElement("canvas");
+offCanvas.width = VIRT_W; offCanvas.height = VIRT_H;
+const vc = offCanvas.getContext("2d");
+vc.imageSmoothingEnabled = false;
+
+const sceneCanvas = document.getElementById("sceneCanvas");
+const sc = sceneCanvas.getContext("2d");
+
+function resizeScene() {
+  sceneCanvas.width = window.innerWidth;
+  sceneCanvas.height = window.innerHeight;
+  sc.imageSmoothingEnabled = false;
+}
+window.addEventListener("resize", resizeScene);
+resizeScene();
+
+// Stars (pre-generated for virtual canvas)
+const VSTARS = Array.from({length:160}, () => ({
+  x: Math.random()*VIRT_W, y: Math.random()*(VIRT_H*0.72),
+  sz: Math.random()<.15 ? 2 : 1,
+  phase: Math.random()*Math.PI*2, spd: Math.random()*.002+.001
+}));
+
+// Dust particles
+const DUST = Array.from({length:25}, () => ({
+  x: Math.random()*VIRT_W, y: Math.random()*VIRT_H,
+  vy: -(Math.random()*.018+.004),
+  a: Math.random()*.35+.05, vx: (Math.random()-.5)*.008
+}));
+
+// ── Pixel art helpers ─────────────────────────────────────────
+function poly(ctx, pts, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+  ctx.closePath(); ctx.fill();
+}
+function ell(ctx, cx,cy,rx,ry,color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
+  ctx.fill();
+}
+function px(ctx, x,y,w,h,color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(x),Math.round(y),w,h);
+}
+
+// ── Scene draw ────────────────────────────────────────────────
+let scenePhase = 'idle'; // 'idle' | 'talking' | 'angry'
+let sceneAnimId = null;
+let sceneT0 = 0;
+
+function drawFrame(t) {
+  // ── Background ──
+  px(vc, 0,0,VIRT_W,VIRT_H,'#020208');
+
+  // Nebula blobs
+  const ng1 = vc.createRadialGradient(75,70,0,75,70,72);
+  ng1.addColorStop(0,'rgba(50,0,80,.40)'); ng1.addColorStop(1,'rgba(0,0,0,0)');
+  vc.fillStyle=ng1; vc.fillRect(0,0,VIRT_W,VIRT_H);
+
+  const ng2 = vc.createRadialGradient(230,55,0,230,55,60);
+  ng2.addColorStop(0,'rgba(10,20,90,.38)'); ng2.addColorStop(1,'rgba(0,0,0,0)');
+  vc.fillStyle=ng2; vc.fillRect(0,0,VIRT_W,VIRT_H);
+
+  const ng3 = vc.createRadialGradient(160,120,0,160,120,50);
+  ng3.addColorStop(0,'rgba(0,40,70,.25)'); ng3.addColorStop(1,'rgba(0,0,0,0)');
+  vc.fillStyle=ng3; vc.fillRect(0,0,VIRT_W,VIRT_H);
+
+  // ── Stars ──
+  VSTARS.forEach(s => {
+    const a = .35 + .65*Math.sin(t*s.spd+s.phase);
+    px(vc, Math.round(s.x), Math.round(s.y), s.sz, s.sz, `rgba(210,225,255,${a.toFixed(2)})`);
+  });
+
+  // ── Crescent moon (behind sphinx, upper center) ──
+  const moonX=195, moonY=32, moonR=34;
+  const mPulse = .85 + .15*Math.sin(t*.00075);
+  // outer glow
+  const mg = vc.createRadialGradient(moonX,moonY,moonR-4,moonX,moonY,moonR+18);
+  mg.addColorStop(0,`rgba(255,165,60,${.18*mPulse})`);
+  mg.addColorStop(1,'rgba(0,0,0,0)');
+  vc.fillStyle=mg; vc.fillRect(0,0,VIRT_W,VIRT_H);
+  // moon body
+  ell(vc, moonX,moonY,moonR,moonR,'#D4924A');
+  ell(vc, moonX-2,moonY+4,moonR-4,moonR-5,'#C8863C');  // surface shadow
+  ell(vc, moonX-10,moonY-4,16,11,'#E8A850');            // highlight arc
+  // crescent cutout (dark ellipse to create crescent shape)
+  ell(vc, moonX+12,moonY-3,moonR-5,moonR-3,'#020208');
+
+  // ── Sphinx ambient glow ──
+  const gcol = scenePhase==='angry' ? '220,30,0' : '190,120,35';
+  const ga = (.12 + .04*Math.sin(t*.001)) * (scenePhase==='angry'?2.2:1);
+  const gg = vc.createRadialGradient(200,85,0,200,85,110);
+  gg.addColorStop(0,`rgba(${gcol},${ga})`);
+  gg.addColorStop(1,'rgba(0,0,0,0)');
+  vc.fillStyle=gg; vc.fillRect(0,0,VIRT_W,VIRT_H);
+
+  // ── SPHINX ──
+  drawSphinx(vc, t, scenePhase);
+
+  // ── Stone pedestal / ruins ──
+  px(vc, 155,168, 95, 12, '#1A1008'); // main base block
+  px(vc, 160,166, 85,  4, '#251808'); // top of base highlight
+  px(vc, 148,173, 110, 8, '#120C06'); // wider lower step
+  // crack detail
+  px(vc, 175,168, 1, 12, '#0A0604');
+  px(vc, 220,169, 1, 11, '#0A0604');
+  // hieroglyph suggestion
+  px(vc, 185,171, 4,4,'#2A1A0A'); px(vc, 192,171,4,4,'#2A1A0A');
+  px(vc, 185,173, 2,2,'#361E08'); px(vc, 193,173,2,2,'#361E08');
+
+  // ── Adventurer (tiny, lower-left, looking up) ──
+  drawAdventurer(vc, t);
+
+  // ── Ground mist ──
+  const mist = vc.createLinearGradient(0,VIRT_H-28,0,VIRT_H);
+  const mA = .28 + .08*Math.sin(t*.0006);
+  mist.addColorStop(0,'rgba(0,0,0,0)');
+  mist.addColorStop(.4,`rgba(30,8,50,${mA})`);
+  mist.addColorStop(1,`rgba(8,2,18,.75)`);
+  vc.fillStyle=mist; vc.fillRect(0,VIRT_H-28,VIRT_W,28);
+
+  // ── Floating dust ──
+  DUST.forEach(d => {
+    d.y+=d.vy; d.x+=d.vx;
+    if(d.y<-2){d.y=VIRT_H+2; d.x=Math.random()*VIRT_W;}
+    if(d.x<0) d.x=VIRT_W; if(d.x>VIRT_W) d.x=0;
+    px(vc, Math.round(d.x),Math.round(d.y),1,1,`rgba(200,150,80,${d.a})`);
+  });
+
+  // ── Blit virtual canvas → actual canvas (scaled up, pixelated) ──
+  sc.clearRect(0,0,sceneCanvas.width,sceneCanvas.height);
+  sc.drawImage(offCanvas, 0,0, sceneCanvas.width, sceneCanvas.height);
+}
+
+function drawSphinx(ctx, t, phase) {
+  const breathe = Math.sin(t*.00085)*1.5;
+  const by = Math.round(172 + breathe); // base y
+  const cx = 202;                        // center x
+
+  const BODY ='#C8873A', DARK='#7A4E18', LITE='#E8A850', BRHT='#F5C878';
+  const wFlap = Math.sin(t*.00065)*1.8;
+  const eyeC  = phase==='angry' ? '#FF1100' : '#FF8800';
+  const talkO = phase==='talking' ? Math.max(0,.5+.5*Math.sin(t*.009)) : 0;
+  const mH    = Math.round(talkO*5)+1;
+
+  // ─ Wings (drawn BEHIND body) ─
+  // left wing — 3 depth layers
+  poly(ctx,[[cx-42,by-70],[cx-138,by-118+wFlap],[cx-145,by-96+wFlap],[cx-85,by-62],[cx-52,by-50]],'#5A3510');
+  poly(ctx,[[cx-42,by-70],[cx-134,by-115+wFlap],[cx-80,by-60],[cx-52,by-50]],'#7A5020');
+  poly(ctx,[[cx-42,by-70],[cx-125,by-110+wFlap],[cx-73,by-58],[cx-52,by-50]],DARK);
+  // feather line hints on left wing
+  for(let i=0;i<5;i++){
+    const frac=i/5;
+    const fx=Math.round(cx-52+(cx-138-cx+52)*frac);
+    const fy=Math.round(by-50+(by-118-by+50)*frac+wFlap*frac);
+    px(ctx,fx,fy,1,7,'#5A3510');
+  }
+  // right wing
+  poly(ctx,[[cx+42,by-70],[cx+138,by-118+wFlap],[cx+145,by-96+wFlap],[cx+85,by-62],[cx+52,by-50]],'#5A3510');
+  poly(ctx,[[cx+42,by-70],[cx+134,by-115+wFlap],[cx+80,by-60],[cx+52,by-50]],'#7A5020');
+  poly(ctx,[[cx+42,by-70],[cx+125,by-110+wFlap],[cx+73,by-58],[cx+52,by-50]],DARK);
+  for(let i=0;i<5;i++){
+    const frac=i/5;
+    const fx=Math.round(cx+52+(cx+138-cx-52)*frac)-1;
+    const fy=Math.round(by-50+(by-118-by+50)*frac+wFlap*frac);
+    px(ctx,fx,fy,1,7,'#5A3510');
+  }
+
+  // ─ Lion body (haunches) ─
+  ell(ctx, cx,by-18,44,14,DARK);      // shadow under
+  ell(ctx, cx-3,by-22,40,12,BODY);    // main
+  ell(ctx, cx-10,by-27,22,7,LITE);    // highlight
+
+  // back haunch block
+  px(ctx, cx+26,by-44,28,26,DARK);
+  px(ctx, cx+26,by-44,22,23,BODY);
+
+  // ─ Front paws ─
+  px(ctx, cx-38,by-36,22,38,BODY);
+  px(ctx, cx-13,by-36,22,38,BODY);
+  px(ctx, cx-38,by-5, 22, 7,DARK); // left paw tip
+  px(ctx, cx-13,by-5, 22, 7,DARK); // right paw tip
+  // toe nubs
+  for(let i=0;i<3;i++){
+    px(ctx,cx-37+i*7,by-2,1,4,'#4A2C0C');
+    px(ctx,cx-12+i*7,by-2,1,4,'#4A2C0C');
+  }
+
+  // ─ Torso ─
+  poly(ctx,[[cx-50,by-36],[cx+54,by-36],[cx+36,by-78],[cx-32,by-78]],DARK);
+  poly(ctx,[[cx-46,by-38],[cx+50,by-38],[cx+34,by-76],[cx-30,by-76]],BODY);
+  poly(ctx,[[cx-16,by-41],[cx+20,by-41],[cx+15,by-75],[cx-12,by-75]],LITE);
+  px(ctx, cx-4,by-75,8,34,BRHT); // bright center stripe
+
+  // shoulder caps
+  px(ctx,cx-52,by-46,10,16,DARK);
+  px(ctx,cx+42,by-46,10,16,DARK);
+  px(ctx,cx-50,by-46, 8,14,BODY);
+  px(ctx,cx+42,by-46, 8,14,BODY);
+
+  // ─ Neck ─
+  px(ctx,cx-13,by-96,26,22,DARK);
+  px(ctx,cx-11,by-95,24,20,BODY);
+  px(ctx,cx-4, by-94,10,18,LITE);
+
+  // ─ Head ─
+  px(ctx,cx-21,by-132,42,40,DARK);
+  px(ctx,cx-19,by-131,40,38,BODY);
+  px(ctx,cx-9, by-129,20,34,LITE);
+  px(ctx,cx-3, by-128, 7,30,BRHT);
+
+  // ─ Headdress ─
+  px(ctx,cx-24,by-155,48,25,DARK);
+  // 4 horizontal stripes
+  for(let i=0;i<4;i++){
+    px(ctx,cx-24,by-155+i*6,48,6, i%2===0?'#6A3E14':BODY);
+  }
+  // side flaps
+  px(ctx,cx-24,by-136, 7,40,DARK);
+  px(ctx,cx+17,by-136, 7,40,DARK);
+  px(ctx,cx-22,by-134, 4,37,BODY);
+  px(ctx,cx+18,by-134, 4,37,BODY);
+
+  // crown
+  px(ctx,cx-3,by-163,6,9,'#FF6600');
+  px(ctx,cx-2,by-166,4,5,'#FFAA00');
+
+  // ─ Eyes ─
+  const ey = by-122;
+  px(ctx,cx-18,ey,12,8,'#000000'); // left socket
+  px(ctx,cx+ 6,ey,12,8,'#000000'); // right socket
+  px(ctx,cx-17,ey+1,10,6,eyeC);    // left eye
+  px(ctx,cx+ 7,ey+1,10,6,eyeC);    // right eye
+  // shine
+  px(ctx,cx-16,ey+1,3,2,'#FFFFFF');
+  px(ctx,cx+ 8,ey+1,3,2,'#FFFFFF');
+
+  // Angry: extra red halo around eyes
+  if(phase==='angry'){
+    const pulse = .4+.3*Math.sin(t*.015);
+    vc.fillStyle=`rgba(255,0,0,${pulse})`;
+    vc.fillRect(cx-21,ey-2,18,12);
+    vc.fillRect(cx+3, ey-2,18,12);
+    // eye "opening wider" effect
+    px(ctx,cx-18,ey-2,12,2,'#FF3300');
+    px(ctx,cx+ 6,ey-2,12,2,'#FF3300');
+  }
+
+  // ─ Nose ─
+  px(ctx,cx-3,by-110,6,4,DARK);
+
+  // ─ Mouth (animates when talking) ─
+  px(ctx,cx-10,by-102,20,mH,DARK);
+  if(mH>2) px(ctx,cx-8,by-101,16,mH-1,'#180404');
+
+  // ─ Beard ─
+  poly(ctx,[[cx-9,by-97],[cx+9,by-97],[cx+5,by-82],[cx-5,by-82]],DARK);
+  px(ctx,cx-2,by-95,4,12,BODY);
+
+  // ─ Collar gems ─
+  px(ctx,cx-30,by-82,64,5,DARK);
+  px(ctx,cx-28,by-77,56,4,'#5A3810');
+  [['#FF4400',cx-26],['#00CCDD',cx-13],['#9900CC',cx],['#00CCDD',cx+13],['#FF4400',cx+22]].forEach(([c,gx])=>{
+    px(ctx,gx,by-84,5,5,c);
+  });
+}
+
+function drawAdventurer(ctx, t) {
+  const ax=20, ay=172;
+  const bob = Math.sin(t*.0015)*.4;
+  const b = Math.round(ay+bob);
+  const C='#1E1008', C2='#3A2010';
+
+  // cloak / body
+  px(ctx,ax-3,b-16,8,12,C);
+  px(ctx,ax-5,b-14,3,10,C); // left cape fold
+  // legs
+  px(ctx,ax-1,b-4, 3,5,C);
+  px(ctx,ax+2,b-4, 3,5,C);
+  // feet
+  px(ctx,ax-2,b+1, 4,2,C2);
+  px(ctx,ax+2,b+1, 4,2,C2);
+  // head (tilted back slightly — looking up)
+  px(ctx,ax+1,b-22,5,6,C2);
+  px(ctx,ax+2,b-21,2,4,'#C07840'); // face skin
+  // tiny staff
+  px(ctx,ax-6,b-20,1,20,C);
+  px(ctx,ax-7,b-20,3,1,C2); // staff top
+}
+
+// ── Scene animation loop ──────────────────────────────────────
+function startScene() {
+  if(sceneAnimId) cancelAnimationFrame(sceneAnimId);
+  sceneT0 = performance.now();
+  (function loop(){
+    sceneAnimId = requestAnimationFrame(loop);
+    drawFrame(performance.now()-sceneT0);
+  })();
+}
+function stopScene() {
+  if(sceneAnimId){ cancelAnimationFrame(sceneAnimId); sceneAnimId=null; }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  TYPEWRITER
+// ════════════════════════════════════════════════════════════════
+let twTimer = null;
+function typewriter(text, el, onDone) {
+  clearTimeout(twTimer);
+  el.textContent = '';
+  let i = 0;
+  scenePhase = 'talking';
+  function step(){
+    if(i < text.length){
+      el.textContent = text.slice(0,i+1) + '▋';
+      i++;
+      twTimer = setTimeout(step, 28 + Math.random()*18);
+    } else {
+      el.textContent = text;
+      scenePhase = 'idle';
+      if(onDone) onDone();
+    }
+  }
+  step();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  SCREEN MANAGEMENT
+// ════════════════════════════════════════════════════════════════
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove("active"));
+  screens[name].classList.add("active");
+  if(name==='riddle'){
+    document.body.classList.add('scene-active');
+  } else {
+    document.body.classList.remove('scene-active');
+    stopScene();
+    // restore svg sphinxes
+    sphinxL.className='sphinx-wrap calm';
+    sphinxR.className='sphinx-wrap calm';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  FLASH / PARTICLES
+// ════════════════════════════════════════════════════════════════
+function flash(color) {
+  flashOL.className=color; flashOL.classList.add("show");
+  setTimeout(()=>flashOL.classList.remove("show"), 280);
+}
+function spawnParticles() {
+  for(let i=0;i<40;i++){
+    const p=document.createElement("div");
+    p.className="particle";
+    const sz=Math.random()*6+3;
+    p.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}vw;bottom:0;background:${Math.random()<.5?"#FFD700":"#00E5FF"};box-shadow:0 0 ${sz*2}px currentColor;animation-duration:${Math.random()*3+2.5}s;animation-delay:${Math.random()*1.2}s;`;
+    document.body.appendChild(p);
+    p.addEventListener("animationend",()=>p.remove());
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  TIMER
+// ════════════════════════════════════════════════════════════════
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft=TIMER_SECONDS;
+  timerFill.style.width="100%";
+  timerFill.classList.remove("danger");
+  timerInterval=setInterval(()=>{
+    if(answering)return;
+    timeLeft--;
+    timerFill.style.width=(timeLeft/TIMER_SECONDS*100)+"%";
+    if(timeLeft<=8) timerFill.classList.add("danger");
+    if(timeLeft<=0){
+      clearInterval(timerInterval);
+      triggerDeath("\"Time runs out for the unworthy,\" the Sphinx declares, eyes blazing open as the stars watch in silence.");
+    }
+  },1000);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  LOAD RIDDLE
+// ════════════════════════════════════════════════════════════════
+function loadRiddle(index) {
+  answering=false;
+  const r=RIDDLES[index];
+
+  starsEl.forEach((s,i)=>s.classList.toggle("lit",i<=index));
+  diffLbl.textContent=r.difficulty;
+  riddleOrd.textContent=r.ord;
+
+  answersGrid.innerHTML="";
+  r.choices.forEach((c,i)=>{
+    const btn=document.createElement("button");
+    btn.className="ans-btn"; btn.textContent=c;
+    btn.addEventListener("click",()=>selectAnswer(i));
+    answersGrid.appendChild(btn);
+  });
+
+  // typewriter with slight intro delay
+  setTimeout(()=>{
+    typewriter(r.question, riddleQ, ()=>startTimer());
+  }, 350);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  SELECT ANSWER
+// ════════════════════════════════════════════════════════════════
+function selectAnswer(chosen){
+  if(answering)return;
+  answering=true;
+  clearInterval(timerInterval);
+  clearTimeout(twTimer);
+  scenePhase='idle';
+
+  const r=RIDDLES[currentRiddle], correct=r.correct;
+  const btns=answersGrid.querySelectorAll(".ans-btn");
+  btns.forEach(b=>b.disabled=true);
+  btns[correct].classList.add("correct");
+
+  if(chosen===correct){
+    flash("green"); spawnParticles();
+    setTimeout(()=>{
+      currentRiddle++;
+      if(currentRiddle>=RIDDLES.length){ triggerVictory(); }
+      else { loadRiddle(currentRiddle); }
+    },1000);
+  } else {
+    btns[chosen].classList.add("wrong");
+    setTimeout(()=>triggerDeath(r.death),700);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  GAME FLOW
+// ════════════════════════════════════════════════════════════════
+function startGame(){
+  currentRiddle=0; scenePhase='idle';
+  startMusic();                        // begin music on first interaction
+  showScreen("riddle");
+  startScene();
+  setTimeout(()=>loadRiddle(0),200);
+}
+
+function triggerDeath(flavor){
+  clearInterval(timerInterval); clearTimeout(twTimer);
+  scenePhase='angry';
+  setMusicVolume(0.25, 600);          // duck music on death
+  flash("red");
+
+  // Side sphinxes get angry for the death screen
+  sphinxL.className='sphinx-wrap angry';
+  sphinxR.className='sphinx-wrap angry';
+  document.querySelectorAll(".pupil-L,.pupil-R").forEach(el=>{
+    el.setAttribute("fill","#FF0000"); el.setAttribute("opacity","0.95");
+    el.setAttribute("rx","9"); el.setAttribute("ry","6");
+  });
+
+  laserL.classList.add("fire"); laserR.classList.add("fire");
+  setTimeout(()=>{ laserL.classList.remove("fire"); laserR.classList.remove("fire"); },900);
+  document.body.classList.add("shaking");
+  setTimeout(()=>document.body.classList.remove("shaking"),700);
+
+  deathFlavor.textContent=flavor;
+  setTimeout(()=>showScreen("death"),850);
+}
+
+function triggerVictory(){
+  clearInterval(timerInterval);
+  scenePhase='idle';
+  setMusicVolume(1.0, 1200);          // swell music on victory
+  flash("green"); spawnParticles();
+  setTimeout(spawnParticles,600); setTimeout(spawnParticles,1200);
+  showScreen("victory");
+}
+
+function restartGame(){
+  clearInterval(timerInterval);
+  clearTimeout(twTimer);
+  answering = false;
+  document.querySelectorAll(".pupil-L,.pupil-R").forEach(el=>{
+    el.setAttribute("fill","#FF8C00"); el.setAttribute("opacity","0.45");
+    el.setAttribute("rx","7"); el.setAttribute("ry","4");
+  });
+  setMusicVolume(0.72, 800);          // restore normal volume
+  showScreen("title");
+}
+</script>
+</body>
+</html>
